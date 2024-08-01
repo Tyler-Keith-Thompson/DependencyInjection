@@ -19,7 +19,7 @@ struct DependencyInjectionTests {
     }
     
     @Test func asynchronousFactoryCanResolveAUniqueType() async throws {
-        class Super {
+        actor Super {
             init() async { }
         }
         let factory = Factory { await Super() }
@@ -28,7 +28,7 @@ struct DependencyInjectionTests {
     }
     
     @Test func asynchronousThrowingFactoryCanResolveAUniqueType() async throws {
-        class Super {
+        actor Super {
             init() async throws { }
         }
         let factory = Factory { try await Super() }
@@ -81,10 +81,10 @@ struct DependencyInjectionTests {
     }
     
     @Test func asynchronousFactoryCanResolveWithHierarchicalContainers() async throws {
-        class Super {
+        class Super: @unchecked Sendable {
             init() async { }
         }
-        class Sub: Super { }
+        class Sub: Super, @unchecked Sendable { }
         let factory = Factory { await Super() }
         
         #expect(await factory() !== factory())
@@ -99,10 +99,10 @@ struct DependencyInjectionTests {
     }
 
     @Test func asynchronousThrowingFactoryCanResolveWithHierarchicalContainers() async throws {
-        class Super {
+        class Super: @unchecked Sendable {
             init() async throws { }
         }
-        class Sub: Super { }
+        class Sub: Super, @unchecked Sendable { }
         let factory = Factory { try await Super() }
         
         #expect(try await factory() !== factory())
@@ -114,5 +114,67 @@ struct DependencyInjectionTests {
         }
 
         #expect(!(try await factory() is Sub))
+    }
+    
+    @Test func synchronousFactoryCanResolveWithACachedScope() async throws {
+        class Super { }
+        let factory = Factory(scope: .cached) { Super() }
+        
+        #expect(factory() === factory())
+    }
+    
+    @Test func synchronousThrowingFactoryCanResolveWithACachedScope() async throws {
+        class Super {
+            init() throws { }
+        }
+        let factory = Factory(scope: .cached) { try Super() }
+        
+        #expect(try factory() === factory())
+    }
+    
+    @Test func asynchronousFactoryCanResolveWithACachedScope() async throws {
+        actor Super {
+            init() async { }
+        }
+        let factory = Factory(scope: .cached) { await Super() }
+        
+        #expect(await factory() === factory())
+    }
+    
+    @Test func asynchronousThrowingFactoryCanResolveWithACachedScope() async throws {
+        actor Super {
+            init() async throws { }
+        }
+        let factory = Factory(scope: .cached) { try await Super() }
+        
+        #expect(try await factory() === factory())
+    }
+    
+    @Test func asynchronousFactoryCanResolveInParallelWithACachedScope() async throws {
+        actor Super {
+            init() async { }
+        }
+        let factory = Factory(scope: .cached) { await Super() }
+        
+        async let factory1 = await factory()
+        async let factory2 = await factory()
+        let resolved1 = await factory1
+        let resolved2 = await factory2
+        
+        #expect(resolved1 === resolved2)
+    }
+    
+    @Test func asynchronousThrowingFactoryCanResolveInParallelWithACachedScope() async throws {
+        actor Super {
+            init() async throws { }
+        }
+        let factory = Factory(scope: .cached) { try await Super() }
+        
+        async let factory1 = try await factory()
+        async let factory2 = try await factory()
+        let resolved1 = try await factory1
+        let resolved2 = try await factory2
+        
+        #expect(resolved1 === resolved2)
     }
 }

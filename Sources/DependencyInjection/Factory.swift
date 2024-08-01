@@ -5,13 +5,14 @@
 //  Created by Tyler Thompson on 8/1/24.
 //
 
-protocol _Factory: AnyObject, Hashable {
+protocol _Factory: AnyObject, Hashable, Sendable {
     associatedtype Dependency
     associatedtype Resolver
     
     var resolver: Resolver { get }
+    var scope: Scope { get }
     
-    init(resolver: Resolver)
+    init(scope: Scope, resolver: Resolver)
 }
 
 extension _Factory {
@@ -24,11 +25,13 @@ extension _Factory {
     }
 }
 
-public final class SyncFactory<Dependency>: _Factory {
+public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     public typealias Resolver = () -> Dependency
     
-    let resolver: () -> Dependency
-    init(resolver: @escaping () -> Dependency) {
+    let resolver: Resolver
+    let scope: Scope
+    init(scope: Scope, resolver: @escaping Resolver) {
+        self.scope = scope
         self.resolver = resolver
         Container.default.register(factory: self)
     }
@@ -42,10 +45,12 @@ public final class SyncFactory<Dependency>: _Factory {
     }
 }
 
-public final class SyncThrowingFactory<Dependency>: _Factory {
+public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendable {
     public typealias Resolver = () throws -> Dependency
-    let resolver: () throws -> Dependency
-    init(resolver: @escaping () throws -> Dependency) {
+    let resolver: Resolver
+    let scope: Scope
+    init(scope: Scope, resolver: @escaping Resolver) {
+        self.scope = scope
         self.resolver = resolver
         Container.default.register(factory: self)
     }
@@ -59,10 +64,12 @@ public final class SyncThrowingFactory<Dependency>: _Factory {
     }
 }
 
-public final class AsyncFactory<Dependency>: _Factory {
+public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Sendable {
     public typealias Resolver = @Sendable () async -> Dependency
-    let resolver: @Sendable () async -> Dependency
-    init(resolver: @Sendable  @escaping () async -> Dependency) {
+    let resolver: Resolver
+    let scope: Scope
+    init(scope: Scope, resolver: @escaping Resolver) {
+        self.scope = scope
         self.resolver = resolver
         Container.default.register(factory: self)
     }
@@ -76,11 +83,13 @@ public final class AsyncFactory<Dependency>: _Factory {
     }
 }
 
-public final class AsyncThrowingFactory<Dependency>: _Factory {
+public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchecked Sendable {
     public typealias Resolver = @Sendable () async throws -> Dependency
     
-    let resolver: @Sendable () async throws -> Dependency
-    init(resolver: @Sendable @escaping () async throws -> Dependency) {
+    let resolver: Resolver
+    let scope: Scope
+    init(scope: Scope, resolver: @escaping Resolver) {
+        self.scope = scope
         self.resolver = resolver
         Container.default.register(factory: self)
     }
@@ -94,18 +103,18 @@ public final class AsyncThrowingFactory<Dependency>: _Factory {
     }
 }
 
-public func Factory<Dependency>(resolver: @escaping () -> Dependency) -> SyncFactory<Dependency> {
-    .init(resolver: resolver)
+public func Factory<Dependency>(scope: Scope = .unique, resolver: @escaping () -> Dependency) -> SyncFactory<Dependency> {
+    .init(scope: scope, resolver: resolver)
 }
 
-public func Factory<Dependency>(resolver: @escaping () throws -> Dependency) -> SyncThrowingFactory<Dependency> {
-    .init(resolver: resolver)
+public func Factory<Dependency>(scope: Scope = .unique, resolver: @escaping () throws -> Dependency) -> SyncThrowingFactory<Dependency> {
+    .init(scope: scope, resolver: resolver)
 }
 
-public func Factory<Dependency>(resolver: @Sendable @escaping () async -> Dependency) -> AsyncFactory<Dependency> {
-    .init(resolver: resolver)
+public func Factory<Dependency>(scope: Scope = .unique, resolver: @Sendable @escaping () async -> Dependency) -> AsyncFactory<Dependency> {
+    .init(scope: scope, resolver: resolver)
 }
 
-public func Factory<Dependency>(resolver: @Sendable @escaping () async throws -> Dependency) -> AsyncThrowingFactory<Dependency> {
-    .init(resolver: resolver)
+public func Factory<Dependency>(scope: Scope = .unique, resolver: @Sendable @escaping () async throws -> Dependency) -> AsyncThrowingFactory<Dependency> {
+    .init(scope: scope, resolver: resolver)
 }
