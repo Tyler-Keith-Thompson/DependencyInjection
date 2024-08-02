@@ -16,11 +16,19 @@ struct TestContainerTests {
     @Test func synchronousFactoryCanResolveAUniqueType() async throws {
         class Super { }
         let factory = Factory { Super() }
+        let val = Super()
+        factory.register { val }
         
         withKnownIssue {
             _ = withTestContainer(unregisteredBehavior: failTestBehavior) {
                 factory()
             }
+        }
+        
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.popRegistration()
+            let resolved = factory()
+            #expect(resolved === val)
         }
     }
     
@@ -29,11 +37,19 @@ struct TestContainerTests {
             init() throws { }
         }
         let factory = Factory { try Super() }
+        let val = try Super()
+        factory.register { val }
         
         withKnownIssue {
             _ = try withTestContainer(unregisteredBehavior: failTestBehavior) {
                 try factory()
             }
+        }
+        
+        try withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.popRegistration()
+            let resolved = try factory()
+            #expect(resolved === val)
         }
     }
     
@@ -42,11 +58,19 @@ struct TestContainerTests {
             init() async { }
         }
         let factory = Factory { await Super() }
-        
+        let val = await Super()
+        factory.register { val }
+
         await withKnownIssue {
             _ = await withTestContainer(unregisteredBehavior: failTestBehavior) {
                 await factory()
             }
+        }
+        
+        await withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.popRegistration()
+            let resolved = await factory()
+            #expect(resolved === val)
         }
     }
     
@@ -55,11 +79,19 @@ struct TestContainerTests {
             init() async throws { }
         }
         let factory = Factory { try await Super() }
-        
+        let val = try await Super()
+        factory.register { val }
+
         await withKnownIssue {
             _ = try await withTestContainer(unregisteredBehavior: failTestBehavior) {
                 try await factory()
             }
+        }
+        
+        try await withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.popRegistration()
+            let resolved = try await factory()
+            #expect(resolved === val)
         }
     }
 }

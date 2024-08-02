@@ -11,6 +11,7 @@ final class TestContainer: Container, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     let unregisteredBehavior: UnregisteredBehavior
     let _parent: Container
+    private var storage = [AnyHashable: StorageBase]()
     
     init(parent: Container, unregisteredBehavior: UnregisteredBehavior) {
         self.unregisteredBehavior = unregisteredBehavior
@@ -19,7 +20,7 @@ final class TestContainer: Container, @unchecked Sendable {
     }
     
     override func resolve<D>(factory: SyncFactory<D>) -> D {
-        if super.storage(for: factory).syncRegistrations.currentResolver() == nil {
+        if storage(for: factory).syncRegistrations.currentResolver() != nil {
             switch unregisteredBehavior {
             case .fatalError:
                 fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
@@ -31,7 +32,7 @@ final class TestContainer: Container, @unchecked Sendable {
     }
     
     override func resolve<D>(factory: SyncThrowingFactory<D>) throws -> D {
-        if super.storage(for: factory).syncThrowingRegistrations.currentResolver() == nil {
+        if storage(for: factory).syncThrowingRegistrations.currentResolver() != nil {
             switch unregisteredBehavior {
             case .fatalError:
                 fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
@@ -43,7 +44,7 @@ final class TestContainer: Container, @unchecked Sendable {
     }
 
     override func resolve<D>(factory: AsyncFactory<D>) async -> D {
-        if super.storage(for: factory).asyncRegistrations.currentResolver() == nil {
+        if storage(for: factory).asyncRegistrations.currentResolver() != nil {
             switch unregisteredBehavior {
             case .fatalError:
                 fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
@@ -55,7 +56,7 @@ final class TestContainer: Container, @unchecked Sendable {
     }
 
     override func resolve<D>(factory: AsyncThrowingFactory<D>) async throws -> D {
-        if super.storage(for: factory).asyncThrowingRegistrations.currentResolver() == nil {
+        if storage(for: factory).asyncThrowingRegistrations.currentResolver() != nil {
             switch unregisteredBehavior {
             case .fatalError:
                 fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
@@ -68,21 +69,26 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func storage<F: _Factory>(for factory: F) -> Storage<F> {
         register(factory: factory)
-        return super.storage(for: factory)
+        return storage[factory]! as! Container.Storage<F>
     }
     
     override func register<F: _Factory>(factory: F) {
-        super.register(factory: factory)
-        let storage = super.storage(for: factory)
-        storage.syncRegistrations.add { fatalError() }
-        storage.syncThrowingRegistrations.add { fatalError() }
-        storage.asyncRegistrations.add { fatalError() }
-        storage.asyncThrowingRegistrations.add { fatalError() }
+        lock.lock()
+        defer { lock.unlock() }
+        if storage[factory] == nil {
+            let storage = Storage(factory: factory)
+            self.storage[factory] = storage
+            storage.syncRegistrations.add { fatalError() }
+            storage.syncThrowingRegistrations.add { fatalError() }
+            storage.asyncRegistrations.add { fatalError() }
+            storage.asyncThrowingRegistrations.add { fatalError() }
+        }
     }
 }
 
 public enum UnregisteredBehavior {
     case fatalError
+    @available(*, deprecated, message: "Warning! Using a custom action will still resolve production dependencies unless you manually stop code execution.")
     case custom(@Sendable (String) -> Void)
 }
 

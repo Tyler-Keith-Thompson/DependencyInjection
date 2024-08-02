@@ -8,7 +8,7 @@ import Foundation
 
 public class Container: @unchecked Sendable {
     private let lock = NSRecursiveLock()
-    var storage = [AnyHashable: StorageBase]()
+    private var storage = [AnyHashable: StorageBase]()
     
     var parent: Container?
     init(parent: Container? = nil) {
