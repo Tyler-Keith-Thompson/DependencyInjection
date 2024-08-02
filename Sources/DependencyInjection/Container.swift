@@ -6,9 +6,9 @@
 //
 import Foundation
 
-public final class Container: @unchecked Sendable {
+public class Container: @unchecked Sendable {
     private let lock = NSRecursiveLock()
-    private var storage = [AnyHashable: StorageBase]()
+    var storage = [AnyHashable: StorageBase]()
     
     var parent: Container?
     init(parent: Container? = nil) {
@@ -25,7 +25,7 @@ public final class Container: @unchecked Sendable {
         ((self.storage[factory] as? Storage<F>) ?? parent?._storage(for: factory))!
     }
     
-    private func storage<F: _Factory>(for factory: F) -> Storage<F> {
+    func storage<F: _Factory>(for factory: F) -> Storage<F> {
         lock.lock()
         defer { lock.unlock() }
         return _storage(for: factory)
@@ -56,27 +56,27 @@ public final class Container: @unchecked Sendable {
     }
     
     func addResolver<D>(for factory: SyncFactory<D>, resolver: @escaping SyncFactory<D>.Resolver) {
-        registerIfNeeded(factory: factory)
+        register(factory: factory)
         storage(for: factory).syncRegistrations.add(resolver: resolver)
     }
     
     func addResolver<D>(for factory: SyncThrowingFactory<D>, resolver: @escaping SyncThrowingFactory<D>.Resolver) {
-        registerIfNeeded(factory: factory)
+        register(factory: factory)
         storage(for: factory).syncThrowingRegistrations.add(resolver: resolver)
     }
     
     func addResolver<D>(for factory: AsyncFactory<D>, resolver: @escaping AsyncFactory<D>.Resolver) {
-        registerIfNeeded(factory: factory)
+        register(factory: factory)
         storage(for: factory).asyncRegistrations.add(resolver: resolver)
     }
     
     func addResolver<D>(for factory: AsyncThrowingFactory<D>, resolver: @escaping AsyncThrowingFactory<D>.Resolver) {
-        registerIfNeeded(factory: factory)
+        register(factory: factory)
         storage(for: factory).asyncThrowingRegistrations.add(resolver: resolver)
     }
     
     func popResolver(for factory: some _Factory) {
-        registerIfNeeded(factory: factory)
+        register(factory: factory)
         let storage = storage(for: factory)
         storage.syncRegistrations.pop()
         storage.syncThrowingRegistrations.pop()
@@ -87,12 +87,6 @@ public final class Container: @unchecked Sendable {
     func register(factory: some _Factory) {
         lock.lock()
         defer { lock.unlock() }
-        storage[factory] = Storage(factory: factory)
-    }
-    
-    private func registerIfNeeded(factory: some _Factory) {
-        lock.lock()
-        defer { lock.unlock() }
         if storage[factory] == nil {
             storage[factory] = Storage(factory: factory)
         }
@@ -100,9 +94,9 @@ public final class Container: @unchecked Sendable {
 }
 
 extension Container {
-    private class StorageBase { }
+    class StorageBase { }
     
-    private final class Storage<Factory: _Factory>: StorageBase, @unchecked Sendable {
+    final class Storage<Factory: _Factory>: StorageBase, @unchecked Sendable {
         private let lock = NSRecursiveLock()
         let syncRegistrations = SyncRegistrations<Factory.Dependency>()
         let syncThrowingRegistrations = SyncThrowingRegistrations<Factory.Dependency>()
