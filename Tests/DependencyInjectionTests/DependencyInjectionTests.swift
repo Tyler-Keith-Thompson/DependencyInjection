@@ -177,4 +177,116 @@ struct DependencyInjectionTests {
         
         #expect(resolved1 === resolved2)
     }
+    
+    @Test func synchronousFactoryCanResolveWithASharedScope() async throws {
+        class Super { }
+        var count = 0
+        let factory = Factory(scope: .shared) { count += 1; return Super() }
+        var val: Super? = factory()
+        weak var ref = val
+        
+        #expect(ref != nil)
+        #expect(val === factory())
+        #expect(factory() === factory())
+        val = nil
+        #expect(ref == nil)
+        _ = factory()
+        #expect(count == 2)
+    }
+    
+    @Test func synchronousThrowingFactoryCanResolveWithASharedScope() async throws {
+        class Super {
+            init() throws { }
+        }
+        var count = 0
+        let factory = Factory(scope: .shared) { count += 1; return try Super() }
+        var val: Super? = try factory()
+        weak var ref = val
+        
+        #expect(ref != nil)
+        #expect(try val === factory())
+        #expect(try factory() === factory())
+        val = nil
+        #expect(ref == nil)
+        _ = try factory()
+        #expect(count == 2)
+    }
+    
+    @Test func asynchronousFactoryCanResolveWithASharedScope() async throws {
+        actor Super {
+            init() async { }
+        }
+        actor Test {
+            var count = 0
+            func increment() {
+                count += 1
+            }
+        }
+        let test = Test()
+        let factory = Factory(scope: .shared) { await test.increment(); return await Super() }
+        var val: Super? = await factory()
+        weak var ref = val
+        
+        #expect(ref != nil)
+        #expect(await val === factory())
+        #expect(await factory() === factory())
+        val = nil
+        #expect(ref == nil)
+        _ = await factory()
+        let countVal = await test.count
+        #expect(countVal == 2)
+    }
+    
+    @Test func asynchronousThrowingFactoryCanResolveWithASharedScope() async throws {
+        actor Super {
+            init() async throws { }
+        }
+        actor Test {
+            var count = 0
+            func increment() {
+                count += 1
+            }
+        }
+        let test = Test()
+        let factory = Factory(scope: .shared) { await test.increment(); return try await Super() }
+        var val: Super? = try await factory()
+        weak var ref = val
+        
+        #expect(ref != nil)
+        #expect(try await val === factory())
+        #expect(try await factory() === factory())
+        val = nil
+        #expect(ref == nil)
+        _ = try await factory()
+        let countVal = await test.count
+        #expect(countVal == 2)
+    }
+
+    @Test func asynchronousFactoryCanResolveInParallelWithASharedScope() async throws {
+        actor Super {
+            init() async { }
+        }
+        let factory = Factory(scope: .shared) { await Super() }
+        
+        async let factory1 = await factory()
+        async let factory2 = await factory()
+        let resolved1 = await factory1
+        let resolved2 = await factory2
+        
+        #expect(resolved1 === resolved2)
+    }
+    
+    @Test func asynchronousThrowingFactoryCanResolveInParallelWithASharedScope() async throws {
+        actor Super {
+            init() async throws { }
+        }
+        let factory = Factory(scope: .shared) { try await Super() }
+        
+        async let factory1 = try await factory()
+        async let factory2 = try await factory()
+        let resolved1 = try await factory1
+        let resolved2 = try await factory2
+        
+        #expect(resolved1 === resolved2)
+    }
 }

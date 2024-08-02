@@ -22,11 +22,17 @@ final class SyncRegistrations<Dependency>: @unchecked Sendable {
         defer { lock.unlock() }
         return resolvers.last
     }
+    
+    deinit {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
+    }
 }
 
 final class SyncThrowingRegistrations<Dependency>: @unchecked Sendable {
     private let lock = NSRecursiveLock()
-
+    
     private var resolvers = [() throws -> Dependency]()
     
     func add(resolver: @escaping () throws -> Dependency) {
@@ -40,11 +46,17 @@ final class SyncThrowingRegistrations<Dependency>: @unchecked Sendable {
         defer { lock.unlock() }
         return resolvers.last
     }
+    
+    deinit {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
+    }
 }
 
 final class AsyncRegistrations<Dependency>: @unchecked Sendable {
     private let lock = NSRecursiveLock()
-
+    
     private var resolvers = [@Sendable () async -> Dependency]()
     
     func add(resolver: @Sendable @escaping () async -> Dependency) {
@@ -58,11 +70,17 @@ final class AsyncRegistrations<Dependency>: @unchecked Sendable {
         defer { lock.unlock() }
         return resolvers.last
     }
+    
+    deinit {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
+    }
 }
 
 final class AsyncThrowingRegistrations<Dependency>: @unchecked Sendable {
     private let lock = NSRecursiveLock()
-
+    
     private var resolvers = [@Sendable () async throws -> Dependency]()
     
     func add(resolver: @Sendable @escaping () async throws -> Dependency) {
@@ -75,5 +93,11 @@ final class AsyncThrowingRegistrations<Dependency>: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return resolvers.last
+    }
+    
+    deinit {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
     }
 }

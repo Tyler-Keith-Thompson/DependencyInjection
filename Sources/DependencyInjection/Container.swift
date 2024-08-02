@@ -84,7 +84,7 @@ public final class Container: @unchecked Sendable {
 extension Container {
     private class StorageBase { }
     
-    private class Storage<Factory: _Factory>: StorageBase, @unchecked Sendable {
+    private final class Storage<Factory: _Factory>: StorageBase, @unchecked Sendable {
         private let lock = NSRecursiveLock()
         let syncRegistrations = SyncRegistrations<Factory.Dependency>()
         let syncThrowingRegistrations = SyncThrowingRegistrations<Factory.Dependency>()
