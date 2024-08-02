@@ -1,0 +1,41 @@
+# example 1: on push to main
+name: Bump version
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: swift:5.10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run TESTS
+        run: swift test
+  deploy:
+    needs: test
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      discussions: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: '0'
+    - name: Bump version and push tag
+      id: bump_version
+      uses: anothrNick/github-tag-action@1.67.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        WITH_V: false
+        DEFAULT_BUMP: patch
+        RELEASE_BRANCHES: main
+    - name: Create a GitHub release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.bump_version.outputs.new_tag }}
+        name: Release ${{ steps.bump_version.outputs.new_tag }}
+        token: ${{ secrets.TOKEN }}
+        discussion_category_name: Releases

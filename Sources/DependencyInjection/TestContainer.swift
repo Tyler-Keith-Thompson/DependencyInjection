@@ -66,6 +66,26 @@ final class TestContainer: Container, @unchecked Sendable {
         }
         return try await _parent.resolve(factory: factory)
     }
+    
+    override func addResolver<D>(for factory: SyncFactory<D>, resolver: @escaping SyncFactory<D>.Resolver) {
+        storage(for: factory).syncRegistrations.clear()
+        return _parent.addResolver(for: factory, resolver: resolver)
+    }
+    
+    override func addResolver<D>(for factory: SyncThrowingFactory<D>, resolver: @escaping SyncThrowingFactory<D>.Resolver) {
+        storage(for: factory).syncThrowingRegistrations.clear()
+        return _parent.addResolver(for: factory, resolver: resolver)
+    }
+    
+    override func addResolver<D>(for factory: AsyncFactory<D>, resolver: @escaping AsyncFactory<D>.Resolver) {
+        storage(for: factory).asyncRegistrations.clear()
+        return _parent.addResolver(for: factory, resolver: resolver)
+    }
+    
+    override func addResolver<D>(for factory: AsyncThrowingFactory<D>, resolver: @escaping AsyncThrowingFactory<D>.Resolver) {
+        storage(for: factory).asyncThrowingRegistrations.clear()
+        return _parent.addResolver(for: factory, resolver: resolver)
+    }
 
     override func storage<F: _Factory>(for factory: F) -> Storage<F> {
         register(factory: factory)

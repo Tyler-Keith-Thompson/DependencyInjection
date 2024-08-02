@@ -23,6 +23,12 @@ final class SyncRegistrations<Dependency>: @unchecked Sendable {
         return resolvers.last
     }
     
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
+    }
+    
     func pop() {
         lock.lock()
         defer { lock.unlock() }
@@ -53,6 +59,12 @@ final class SyncThrowingRegistrations<Dependency>: @unchecked Sendable {
         return resolvers.last
     }
     
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
+    }
+
     func pop() {
         lock.lock()
         defer { lock.unlock() }
@@ -83,6 +95,12 @@ final class AsyncRegistrations<Dependency>: @unchecked Sendable {
         return resolvers.last
     }
     
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
+    }
+
     func pop() {
         lock.lock()
         defer { lock.unlock() }
@@ -113,6 +131,12 @@ final class AsyncThrowingRegistrations<Dependency>: @unchecked Sendable {
         return resolvers.last
     }
     
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        resolvers.removeAll()
+    }
+
     func pop() {
         lock.lock()
         defer { lock.unlock() }
