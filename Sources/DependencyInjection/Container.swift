@@ -66,6 +66,15 @@ public final class Container: @unchecked Sendable {
         storage(for: factory).asyncThrowingRegistrations.add(resolver: resolver)
     }
     
+    func popResolver(for factory: some _Factory) {
+        registerIfNeeded(factory: factory)
+        let storage = storage(for: factory)
+        storage.syncRegistrations.pop()
+        storage.syncThrowingRegistrations.pop()
+        storage.asyncRegistrations.pop()
+        storage.asyncThrowingRegistrations.pop()
+    }
+    
     func register(factory: some _Factory) {
         lock.lock()
         defer { lock.unlock() }

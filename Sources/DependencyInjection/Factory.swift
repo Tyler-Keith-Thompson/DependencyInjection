@@ -43,6 +43,10 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     public func register(_ resolver: @escaping Resolver) {
         Container.current.addResolver(for: self, resolver: resolver)
     }
+    
+    public func popRegistration() {
+        Container.current.popResolver(for: self)
+    }
 }
 
 public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendable {
@@ -61,6 +65,10 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
     
     public func register(_ resolver: @escaping Resolver) {
         Container.current.addResolver(for: self, resolver: resolver)
+    }
+    
+    public func popRegistration() {
+        Container.current.popResolver(for: self)
     }
 }
 
@@ -81,6 +89,10 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
     public func register(_ resolver: @escaping Resolver) {
         Container.current.addResolver(for: self, resolver: resolver)
     }
+    
+    public func popRegistration() {
+        Container.current.popResolver(for: self)
+    }
 }
 
 public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchecked Sendable {
@@ -100,6 +112,10 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     
     public func register(_ resolver: @escaping Resolver) {
         Container.current.addResolver(for: self, resolver: resolver)
+    }
+    
+    public func popRegistration() {
+        Container.current.popResolver(for: self)
     }
 }
 
