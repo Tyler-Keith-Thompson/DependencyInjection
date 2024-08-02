@@ -65,20 +65,20 @@ public final class CachedScope: Scope, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        if let task = lock.withLock({ self.task }) as? Task<D, Never> {
+        if let task = lock.protect({ self.task }) as? Task<D, Never> {
             return await task.value
         }
-        defer { lock.withLock { self.task = nil } }
+        defer { lock.protect { self.task = nil } }
         let task = Task { [weak self] in
             let resolved = await resolver()
             if let self {
-                self.lock.withLock {
+                self.lock.protect {
                     self.cache.register(resolved)
                 }
             }
             return resolved
         }
-        lock.withLock { self.task = task }
+        lock.protect { self.task = task }
         return await task.value
     }
     
@@ -86,20 +86,20 @@ public final class CachedScope: Scope, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        if let task = lock.withLock({ self.task }) as? Task<D, any Error> {
+        if let task = lock.protect({ self.task }) as? Task<D, any Error> {
             return try await task.value
         }
-        defer { lock.withLock { self.task = nil } }
+        defer { lock.protect { self.task = nil } }
         let task = Task { [weak self] in
             let resolved = try await resolver()
             if let self {
-                self.lock.withLock {
+                self.lock.protect {
                     self.cache.register(resolved)
                 }
             }
             return resolved
         }
-        lock.withLock { self.task = task }
+        lock.protect { self.task = task }
         return try await task.value
     }
 }
@@ -131,20 +131,20 @@ public final class SharedScope: Scope, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        if let task = lock.withLock({ self.task }) as? Task<D, Never> {
+        if let task = lock.protect({ self.task }) as? Task<D, Never> {
             return await task.value
         }
-        defer { lock.withLock { self.task = nil } }
+        defer { lock.protect { self.task = nil } }
         let task = Task { [weak self] in
             let resolved = await resolver()
             if let self {
-                self.lock.withLock {
+                self.lock.protect {
                     self.cache.register(resolved)
                 }
             }
             return resolved
         }
-        lock.withLock { self.task = task }
+        lock.protect { self.task = task }
         return await task.value
     }
     
@@ -152,28 +152,28 @@ public final class SharedScope: Scope, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        if let task = lock.withLock({ self.task }) as? Task<D, any Error> {
+        if let task = lock.protect({ self.task }) as? Task<D, any Error> {
             return try await task.value
         }
-        defer { lock.withLock { self.task = nil } }
+        defer { lock.protect { self.task = nil } }
         let task = Task { [weak self] in
             let resolved = try await resolver()
             if let self {
-                self.lock.withLock {
+                self.lock.protect {
                     self.cache.register(resolved)
                 }
             }
             return resolved
         }
-        lock.withLock { self.task = task }
+        lock.protect { self.task = task }
         return try await task.value
     }
 }
 
-extension NSLock {
-    func withLock<ReturnValue>(_ body: () throws -> ReturnValue) rethrows -> ReturnValue {
+extension NSRecursiveLock {
+    func protect<T>(_ instructions: () throws -> T) rethrows -> T {
         lock()
         defer { unlock() }
-        return try body()
+        return try instructions()
     }
 }
