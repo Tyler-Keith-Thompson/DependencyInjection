@@ -174,77 +174,100 @@ struct DependencyInjectionTests {
         #expect(!(try await factory() is Sub))
     }
     
-//    @Test func synchronousFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
-//        class Super { }
-//        class Sub: Super { }
-//        class SubSub: Super { }
-//        let factory = Factory { Super() }
-//        factory.register { Sub() }
-//        
-//        #expect(factory() !== factory())
-//        
-//        withNestedContainer {
-//            #expect(factory() is Sub)
-//            factory.register { SubSub() }
-//            #expect(factory() is SubSub)
-//        }
-//        
-//        #expect(factory() is Sub)
-//    }
-//    
-//    @Test func synchronousThrowingFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
-//        class Super {
-//            init() throws { }
-//        }
-//        class Sub: Super { }
-//        let factory = Factory { try Super() }
-//        
-//        #expect(try factory() !== factory())
-//        
-//        try withNestedContainer {
-//            factory.register { try Sub() }
-//            let resolved = try factory()
-//            #expect(resolved is Sub)
-//        }
-//
-//        #expect(!(try factory() is Sub))
-//    }
-//    
-//    @Test func asynchronousFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
-//        class Super: @unchecked Sendable {
-//            init() async { }
-//        }
-//        class Sub: Super, @unchecked Sendable { }
-//        let factory = Factory { await Super() }
-//        
-//        #expect(await factory() !== factory())
-//        
-//        await withNestedContainer {
-//            factory.register { await Sub() }
-//            let resolved = await factory()
-//            #expect(resolved is Sub)
-//        }
-//
-//        #expect(!(await factory() is Sub))
-//    }
-//
-//    @Test func asynchronousThrowingFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
-//        class Super: @unchecked Sendable {
-//            init() async throws { }
-//        }
-//        class Sub: Super, @unchecked Sendable { }
-//        let factory = Factory { try await Super() }
-//        
-//        #expect(try await factory() !== factory())
-//        
-//        try await withNestedContainer {
-//            factory.register { try await Sub() }
-//            let resolved = try await factory()
-//            #expect(resolved is Sub)
-//        }
-//
-//        #expect(!(try await factory() is Sub))
-//    }
+    @Test func synchronousFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
+        class Super { }
+        class Sub: Super { }
+        class SubSub: Super { }
+        let factory = Factory { Super() }
+        factory.register { Sub() }
+        
+        #expect(factory() !== factory())
+        
+        withNestedContainer {
+            #expect(factory() is Sub)
+            factory.register { SubSub() }
+            #expect(factory() is SubSub)
+            factory.popRegistration()
+            #expect(factory() is Sub)
+        }
+        
+        #expect(factory() is Sub)
+    }
+    
+    @Test func synchronousThrowingFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
+        class Super {
+            init() throws { }
+        }
+        class Sub: Super { }
+        class SubSub: Super { }
+        let factory = Factory { try Super() }
+        factory.register { try Sub() }
+
+        #expect(try factory() !== factory())
+        
+        try withNestedContainer {
+            var val = try factory()
+            #expect(val is Sub)
+            factory.register { try SubSub() }
+            val = try factory()
+            #expect(val is SubSub)
+            factory.popRegistration()
+            val = try factory()
+            #expect(val is Sub)
+        }
+
+        #expect(try factory() is Sub)
+    }
+    
+    @Test func asynchronousFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
+        class Super: @unchecked Sendable {
+            init() async { }
+        }
+        class Sub: Super, @unchecked Sendable { }
+        class SubSub: Super, @unchecked Sendable { }
+        let factory = Factory { await Super() }
+        factory.register { await Sub() }
+
+        #expect(await factory() !== factory())
+        
+        await withNestedContainer {
+            var val = await factory()
+            #expect(val is Sub)
+            factory.register { await SubSub() }
+            val = await factory()
+            #expect(val is SubSub)
+            factory.popRegistration()
+            val = await factory()
+            #expect(val is Sub)
+        }
+
+        #expect(await factory() is Sub)
+    }
+
+    @Test func asynchronousThrowingFactoryCanResolveFromParentWithHierarchicalContainers() async throws {
+        class Super: @unchecked Sendable {
+            init() async throws { }
+        }
+        class Sub: Super, @unchecked Sendable { }
+        class SubSub: Super, @unchecked Sendable { }
+        let factory = Factory { try await Super() }
+        factory.register { try await Sub() }
+
+        #expect(try await factory() !== factory())
+        
+        try await withNestedContainer {
+            var val = try await factory()
+            #expect(val is Sub)
+            factory.register { try await SubSub() }
+            val = try await factory()
+            #expect(val is SubSub)
+            factory.popRegistration()
+            val = try await factory()
+            #expect(val is Sub)
+        }
+
+        #expect(try await factory() is Sub)
+    }
     
     @Test func synchronousFactoryCanResolveWithACachedScope() async throws {
         class Super { }
