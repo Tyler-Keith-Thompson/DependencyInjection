@@ -15,12 +15,14 @@ public final class Container: @unchecked Sendable {
         self.parent = parent
     }
     
-    private func __storage<F: _Factory>(for factory: F) -> Storage<F>? {
-        return (self.storage[factory] as? Storage<F>) ?? parent?._storage(for: factory)
+    private func __lockedStorage<F: _Factory>(for factory: F) -> Storage<F>? {
+        lock.lock()
+        defer { lock.unlock() }
+        return (self.storage[factory] as? Storage<F>) ?? parent?.__lockedStorage(for: factory)
     }
     
     private func _storage<F: _Factory>(for factory: F) -> Storage<F> {
-        __storage(for: factory)!
+        ((self.storage[factory] as? Storage<F>) ?? parent?._storage(for: factory))!
     }
     
     private func storage<F: _Factory>(for factory: F) -> Storage<F> {
@@ -30,25 +32,25 @@ public final class Container: @unchecked Sendable {
     }
     
     func resolve<D>(factory: SyncFactory<D>) -> D {
-        let currentRegisteredResolver = storage(for: factory).syncRegistrations.currentResolver() ?? parent?.__storage(for: factory)?.syncRegistrations.currentResolver()
+        let currentRegisteredResolver = storage(for: factory).syncRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.syncRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
         return factory.scope.resolve(resolver: currentResolver)
     }
     
     func resolve<D>(factory: SyncThrowingFactory<D>) throws -> D {
-        let currentRegisteredResolver = storage(for: factory).syncThrowingRegistrations.currentResolver() ?? parent?.__storage(for: factory)?.syncThrowingRegistrations.currentResolver()
+        let currentRegisteredResolver = storage(for: factory).syncThrowingRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.syncThrowingRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
         return try factory.scope.resolve(resolver: currentResolver)
     }
 
     func resolve<D>(factory: AsyncFactory<D>) async -> D {
-        let currentRegisteredResolver = storage(for: factory).asyncRegistrations.currentResolver() ?? parent?.__storage(for: factory)?.asyncRegistrations.currentResolver()
+        let currentRegisteredResolver = storage(for: factory).asyncRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.asyncRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
         return await factory.scope.resolve(resolver: currentResolver)
     }
 
     func resolve<D>(factory: AsyncThrowingFactory<D>) async throws -> D {
-        let currentRegisteredResolver = storage(for: factory).asyncThrowingRegistrations.currentResolver() ?? parent?.__storage(for: factory)?.asyncThrowingRegistrations.currentResolver()
+        let currentRegisteredResolver = storage(for: factory).asyncThrowingRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.asyncThrowingRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
         return try await factory.scope.resolve(resolver: currentResolver)
     }
