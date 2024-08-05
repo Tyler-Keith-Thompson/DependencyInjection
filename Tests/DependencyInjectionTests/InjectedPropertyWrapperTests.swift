@@ -10,11 +10,11 @@ import DependencyInjection
 
 struct InjectedPropertyWrapperTests {
     @Test func injectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime() async throws {
+        class Example {
+            @Injected(Container.exampleDependency) var dependency
+        }
+        
         withTestContainer {
-            class Example {
-                @Injected(Container.exampleDependency) var dependency
-            }
-
             let expected = ExampleDependency()
             var count = 0
             Container.exampleDependency.register {
