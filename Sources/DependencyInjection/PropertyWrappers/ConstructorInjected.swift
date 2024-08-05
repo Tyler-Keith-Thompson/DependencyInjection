@@ -6,15 +6,41 @@
 //
 
 @propertyWrapper
-public struct ConstructorInjected<Value>: @unchecked Sendable {
+public final class ConstructorInjected<Value, Factory: Sendable>: @unchecked Sendable {
     public let wrappedValue: Value
-    let factory: SyncFactory<Value>
-    public init(_ factory: SyncFactory<Value>) {
-        self.factory = factory
+    let factory: Factory
+    let cleanup: () -> Void
+    public init(_ factory: SyncFactory<Value>) where Factory == SyncFactory<Value> {
         wrappedValue = factory()
+        self.factory = factory
+        cleanup = { }
+    }
+
+    public init<D>(_ factory: Factory) where Factory == SyncThrowingFactory<D>, Value == Result<D, any Error> {
+        wrappedValue = Result { try factory() }
+        self.factory = factory
+        cleanup = { }
     }
     
-    public var projectedValue: SyncFactory<Value> {
+    public init<D>(_ factory: Factory) where Factory == AsyncFactory<D>, Value == Task<D, Never> {
+        let task = Task { await factory() }
+        wrappedValue = task
+        self.factory = factory
+        cleanup = task.cancel
+    }
+    
+    public init<D>(_ factory: Factory) where Factory == AsyncThrowingFactory<D>, Value == Task<D, any Error> {
+        let task = Task { try await factory() }
+        wrappedValue = task
+        self.factory = factory
+        cleanup = task.cancel
+    }
+    
+    deinit {
+        cleanup()
+    }
+    
+    public var projectedValue: Factory {
         factory
     }
 }

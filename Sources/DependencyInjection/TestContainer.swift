@@ -114,7 +114,7 @@ public enum UnregisteredBehavior {
 
 public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () throws -> T) rethrows -> T {
     var context = ServiceContext.topLevel
-    context.container = TestContainer(parent: Container.current, unregisteredBehavior: unregisteredBehavior)
+    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
     return try ServiceContext.withValue(context, operation: operation)
 }
 
@@ -123,6 +123,6 @@ public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .f
 @_unsafeInheritExecutor // Deprecated trick to avoid executor hop here; 6.0 introduces the proper replacement: #isolation
 public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () async throws -> T) async rethrows -> T {
     var context = ServiceContext.topLevel
-    context.container = TestContainer(parent: Container.current, unregisteredBehavior: unregisteredBehavior)
+    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
     return try await ServiceContext.withValue(context, operation: operation)
 }

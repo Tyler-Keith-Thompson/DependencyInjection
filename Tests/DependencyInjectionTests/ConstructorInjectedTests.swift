@@ -1,5 +1,5 @@
 //
-//  InjectedPropertyWrapperTests.swift
+//  ConstructorInjectedTests.swift
 //  DependencyInjection
 //
 //  Created by Tyler Thompson on 8/5/24.
@@ -8,13 +8,13 @@
 import Testing
 import DependencyInjection
 
-struct InjectedPropertyWrapperTests {
-    @Test func injectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime() async throws {
+struct ConstructorInjectedTests {
+    @Test func constructorInjectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime() async throws {
+        class Example {
+            @ConstructorInjected(Container.exampleDependency) var dependency
+        }
+        
         withTestContainer {
-            class Example {
-                @Injected(Container.exampleDependency) var dependency
-            }
-
             let expected = ExampleDependency()
             var count = 0
             Container.exampleDependency.register {
@@ -24,13 +24,15 @@ struct InjectedPropertyWrapperTests {
             let example = Example()
             #expect(example.dependency === expected)
             #expect(example.dependency === expected)
+            #expect(count == 1)
+            _ = Example()
             #expect(count == 2)
         }
     }
     
-    @Test func injectedPropertyWrapper_WithSyncThrowingFactory_ResolvesEveryTime() async throws {
+    @Test func constructorInjectedPropertyWrapper_WithSyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @Injected(Container.exampleThrowingDependency) var dependency
+            @ConstructorInjected(Container.exampleThrowingDependency) var dependency
         }
         
         try withTestContainer {
@@ -44,13 +46,15 @@ struct InjectedPropertyWrapperTests {
             let example = Example()
             #expect(try example.dependency.get() === expected)
             #expect(try example.dependency.get() === expected)
+            #expect(count == 1)
+            _ = Example()
             #expect(count == 2)
         }
     }
     
-    @Test func injectedPropertyWrapper_WithAsyncFactory_ResolvesEveryTime() async throws {
+    @Test func constructorInjectedPropertyWrapper_WithAsyncFactory_ResolvesEveryTime() async throws {
         class Example {
-            @Injected(Container.exampleAsyncDependency) var dependency
+            @ConstructorInjected(Container.exampleAsyncDependency) var dependency
         }
         
         await withTestContainer {
@@ -70,13 +74,16 @@ struct InjectedPropertyWrapperTests {
             let example = Example()
             #expect(await example.dependency.value === expected)
             #expect(await example.dependency.value === expected)
+            #expect(await test.count == 1)
+            let example2 = Example()
+            _ = await example2.dependency.value
             #expect(await test.count == 2)
         }
     }
     
-    @Test func injectedPropertyWrapper_WithAsyncThrowingFactory_ResolvesEveryTime() async throws {
+    @Test func constructorInjectedPropertyWrapper_WithAsyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @Injected(Container.exampleAsyncThrowingDependency) var dependency
+            @ConstructorInjected(Container.exampleAsyncThrowingDependency) var dependency
         }
         
         try await withTestContainer {
@@ -96,28 +103,10 @@ struct InjectedPropertyWrapperTests {
             let example = Example()
             #expect(try await example.dependency.value === expected)
             #expect(try await example.dependency.value === expected)
-            #expect(try await test.count == 2)
+            #expect(await test.count == 1)
+            let example2 = Example()
+            _ = try await example2.dependency.value
+            #expect(await test.count == 2)
         }
     }
-}
-
-class ExampleDependency { }
-
-class ExampleThrowingDependency {
-    init() throws { }
-}
-
-class ExampleAsyncDependency {
-    init() async { }
-}
-
-class ExampleAsyncThrowingDependency {
-    init() async throws { }
-}
-
-extension Container {
-    static let exampleDependency = Factory { ExampleDependency() }
-    static let exampleThrowingDependency = Factory { try ExampleThrowingDependency() }
-    static let exampleAsyncDependency = Factory { await ExampleAsyncDependency() }
-    static let exampleAsyncThrowingDependency = Factory { try await ExampleAsyncThrowingDependency() }
 }
