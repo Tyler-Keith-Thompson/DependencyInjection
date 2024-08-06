@@ -38,4 +38,3 @@ jobs:
         tag_name: ${{ steps.bump_version.outputs.new_tag }}
         name: Release ${{ steps.bump_version.outputs.new_tag }}
         token: ${{ secrets.TOKEN }}
-        discussion_category_name: Releases
