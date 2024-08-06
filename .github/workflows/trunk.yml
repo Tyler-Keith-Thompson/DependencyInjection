@@ -33,7 +33,7 @@ jobs:
         RELEASE_BRANCHES: main
     - name: Create a GitHub release
       if: github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.bump_version.outputs.new_tag }}
         name: Release ${{ steps.bump_version.outputs.new_tag }}

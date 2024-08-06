@@ -22,7 +22,7 @@ public class Container: @unchecked Sendable {
     }
     
     private func _storage<F: _Factory>(for factory: F) -> Storage<F> {
-        ((self.storage[factory] as? Storage<F>) ?? parent?.__lockedStorage(for: factory))!
+        ((self.storage[factory] as? Storage<F>) ?? parent?.storage(for: factory))!
     }
     
     func storage<F: _Factory>(for factory: F) -> Storage<F> {
