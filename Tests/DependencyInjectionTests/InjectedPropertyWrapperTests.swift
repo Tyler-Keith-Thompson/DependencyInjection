@@ -101,17 +101,17 @@ struct InjectedPropertyWrapperTests {
     }
 }
 
-class ExampleDependency { }
+class ExampleDependency: @unchecked Sendable { }
 
-class ExampleThrowingDependency {
+class ExampleThrowingDependency: @unchecked Sendable {
     init() throws { }
 }
 
-class ExampleAsyncDependency {
+class ExampleAsyncDependency: @unchecked Sendable {
     init() async { }
 }
 
-class ExampleAsyncThrowingDependency {
+class ExampleAsyncThrowingDependency: @unchecked Sendable {
     init() async throws { }
 }
 

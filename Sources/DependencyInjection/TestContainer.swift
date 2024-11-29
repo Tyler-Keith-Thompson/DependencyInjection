@@ -113,16 +113,17 @@ public enum UnregisteredBehavior {
 }
 
 public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () throws -> T) rethrows -> T {
-    var context = ServiceContext.topLevel
+    var context = ServiceContext.inUse
+    Container.default.fatalErrorOnResolve = true
+    defer { Container.default.fatalErrorOnResolve = false }
     context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
     return try ServiceContext.withValue(context, operation: operation)
 }
 
-//@available(*, deprecated, message: "Prefer withNestedContainer(isolation:operation:)")
-@_disfavoredOverload
-@_unsafeInheritExecutor // Deprecated trick to avoid executor hop here; 6.0 introduces the proper replacement: #isolation
-public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () async throws -> T) async rethrows -> T {
-    var context = ServiceContext.topLevel
+public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation, unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () async throws -> T) async rethrows -> T {
+    var context = ServiceContext.inUse
+    Container.default.fatalErrorOnResolve = true
+    defer { Container.default.fatalErrorOnResolve = false }
     context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
     return try await ServiceContext.withValue(context, operation: operation)
 }

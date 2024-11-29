@@ -40,7 +40,7 @@ public final class UniqueScope: Scope, @unchecked Sendable { }
 
 public final class CachedScope: Scope, @unchecked Sendable {
     private let lock = NSRecursiveLock()
-    let cache = StrongCache()
+    public let cache: any Cache = StrongCache()
     var task: Any?
     
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
@@ -106,7 +106,7 @@ public final class CachedScope: Scope, @unchecked Sendable {
 
 public final class SharedScope: Scope, @unchecked Sendable {
     private let lock = NSRecursiveLock()
-    let cache = WeakCache()
+    public let cache: any Cache = WeakCache()
     var task: Any?
     
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {

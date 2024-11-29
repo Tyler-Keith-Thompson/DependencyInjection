@@ -17,7 +17,13 @@ extension ServiceContext {
 extension Container {
     static let `default` = Container()
     
-    static var current: Container {
+    /// A reference to a the currently in-use container, useful for
+    /// propagation of contextual data across asynchronous boundaries.
+    ///
+    /// `ContainerReference` is particularly useful in cases where tasks lose their
+    /// context (e.g., when using `Task.detached`). It provides a mechanism to
+    /// explicitly pass and reapply a `Container` to such tasks.
+    public static var current: Container {
         ServiceContext.inUse.container
     }
 }
@@ -37,16 +43,13 @@ extension ServiceContext {
 }
 
 public func withNestedContainer<T>(operation: () throws -> T) rethrows -> T {
-    var context = ServiceContext.topLevel
+    var context = ServiceContext.inUse
     context.container = Container(parent: Container.current)
     return try ServiceContext.withValue(context, operation: operation)
 }
 
-//@available(*, deprecated, message: "Prefer withNestedContainer(isolation:operation:)")
-@_disfavoredOverload
-@_unsafeInheritExecutor // Deprecated trick to avoid executor hop here; 6.0 introduces the proper replacement: #isolation
-public func withNestedContainer<T>(operation: () async throws -> T) async rethrows -> T {
-    var context = ServiceContext.topLevel
+public func withNestedContainer<T>(isolation: isolated(any Actor)? = #isolation, operation: () async throws -> T) async rethrows -> T {
+    var context = ServiceContext.inUse
     context.container = Container(parent: Container.current)
     return try await ServiceContext.withValue(context, operation: operation)
 }
