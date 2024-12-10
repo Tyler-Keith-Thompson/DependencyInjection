@@ -56,6 +56,7 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     }
 
     public func register(_ resolver: @escaping Resolver) {
+        (scope as? ScopeWithCache)?.cache.clear()
         Container.current.addResolver(for: self, resolver: resolver)
     }
     

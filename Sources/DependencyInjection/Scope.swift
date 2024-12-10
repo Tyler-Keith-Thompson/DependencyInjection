@@ -12,6 +12,10 @@ actor DIActor: GlobalActor {
     static let shared = DIActor()
 }
 
+protocol ScopeWithCache {
+    var cache: any Cache { get }
+}
+
 open class Scope: @unchecked Sendable {
     func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
         resolver()
@@ -38,7 +42,7 @@ extension Scope {
 
 public final class UniqueScope: Scope, @unchecked Sendable { }
 
-public final class CachedScope: Scope, @unchecked Sendable {
+public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     public let cache: any Cache = StrongCache()
     var task: Any?
@@ -104,7 +108,7 @@ public final class CachedScope: Scope, @unchecked Sendable {
     }
 }
 
-public final class SharedScope: Scope, @unchecked Sendable {
+public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     public let cache: any Cache = WeakCache()
     var task: Any?

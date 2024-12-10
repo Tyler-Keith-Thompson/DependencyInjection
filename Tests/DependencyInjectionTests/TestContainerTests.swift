@@ -32,6 +32,36 @@ struct TestContainerTests {
         }
     }
     
+    @Test func factoryWeakCacheIsResetAfterRegistration() async throws {
+        class Super { }
+        let factory = Factory(scope: .shared) { Super() }
+        
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let val = Super()
+            factory.register { val }
+            let resolved = factory()
+            #expect(resolved === val)
+            let val2 = Super()
+            factory.register { val2 }
+            #expect(factory() === val2)
+        }
+    }
+    
+    @Test func factoryStrongCacheIsResetAfterRegistration() async throws {
+        class Super { }
+        let factory = Factory(scope: .cached) { Super() }
+        
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let val = Super()
+            factory.register { val }
+            let resolved = factory()
+            #expect(resolved === val)
+            let val2 = Super()
+            factory.register { val2 }
+            #expect(factory() === val2)
+        }
+    }
+    
     @Test func synchronousThrowingFactoryCanResolveAUniqueType() async throws {
         class Super {
             init() throws { }
