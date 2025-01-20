@@ -2,7 +2,7 @@
 
 This repository, expose a dependency injection system.
 It follows simple DI functionality, with one special twist! 
-The system support async/await Di resulotion, in addition, the system exposes a TestContainer to allow addressing race conditions in tests where DI is used in combination with async/await
+The system support async/await Di resolution, in addition, the system exposes a TestContainer to allow addressing race conditions in tests where DI is used in combination with async/await
 
 ## An abstract graph visualization of the componenets constracting the DI system
 
