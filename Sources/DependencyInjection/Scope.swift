@@ -48,21 +48,25 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
     var task: Any?
     
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
-        if cache.hasValue, let result = cache() as? D {
-            return result
+        lock.protect {
+            if cache.hasValue, let result = cache() as? D {
+                return result
+            }
+            let resolved = resolver()
+            cache.register(resolved)
+            return resolved
         }
-        let resolved = resolver()
-        cache.register(resolved)
-        return resolved
     }
     
     override func resolve<D>(resolver: @escaping SyncThrowingFactory<D>.Resolver) throws -> D {
-        if cache.hasValue, let result = cache() as? D {
-            return result
+        try lock.protect {
+            if cache.hasValue, let result = cache() as? D {
+                return result
+            }
+            let resolved = try resolver()
+            cache.register(resolved)
+            return resolved
         }
-        let resolved = try resolver()
-        cache.register(resolved)
-        return resolved
     }
     
     @DIActor override func resolve<D>(resolver: @escaping AsyncFactory<D>.Resolver) async -> D {
@@ -114,21 +118,25 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
     var task: Any?
     
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
-        if cache.hasValue, let result = cache() as? D {
-            return result
+        lock.protect {
+            if cache.hasValue, let result = cache() as? D {
+                return result
+            }
+            let resolved = resolver()
+            cache.register(resolved)
+            return resolved
         }
-        let resolved = resolver()
-        cache.register(resolved)
-        return resolved
     }
     
     override func resolve<D>(resolver: @escaping SyncThrowingFactory<D>.Resolver) throws -> D {
-        if let result = cache() as? D {
-            return result
+        try lock.protect {
+            if let result = cache() as? D {
+                return result
+            }
+            let resolved = try resolver()
+            cache.register(resolved)
+            return resolved
         }
-        let resolved = try resolver()
-        cache.register(resolved)
-        return resolved
     }
     
     @DIActor override func resolve<D>(resolver: @escaping AsyncFactory<D>.Resolver) async -> D {
