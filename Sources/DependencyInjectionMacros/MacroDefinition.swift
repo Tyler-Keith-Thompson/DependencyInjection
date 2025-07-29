@@ -1,0 +1,15 @@
+//
+//  MacroDefinition.swift
+//  DependencyInjection
+//
+//  Created by Tyler Thompson on 7/27/25.
+//
+
+import SwiftCompilerPlugin
+import SwiftSyntaxMacros
+import DependencyInjectionMacros
+
+@main
+struct MyProjectMacros: CompilerPlugin {
+    var providingMacros: [Macro.Type] = [InjectedMacro.self]
+}

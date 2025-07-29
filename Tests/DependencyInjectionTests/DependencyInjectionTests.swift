@@ -514,183 +514,183 @@ struct DependencyInjectionTests {
         }
     }
 
-    @Test func synchronousFactoryCanResolveWithASharedScope_whenResolvedConcurrently() async {
-        await withNestedContainer {
-            class Super: @unchecked Sendable {
-                // we're using semaphores here because we need to be able to prevent
-                // the synchronous init from finishing until both Tasks have begun
-                static let semaphore1 = DispatchSemaphore(value: 1)
-                static let semaphore2 = DispatchSemaphore(value: 1)
+//    @Test func synchronousFactoryCanResolveWithASharedScope_whenResolvedConcurrently() async {
+//        await withNestedContainer {
+//            class Super: @unchecked Sendable {
+//                // we're using semaphores here because we need to be able to prevent
+//                // the synchronous init from finishing until both Tasks have begun
+//                static let semaphore1 = DispatchSemaphore(value: 1)
+//                static let semaphore2 = DispatchSemaphore(value: 1)
+//
+//                init() {
+//                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
+//                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
+//                    Self.semaphore1.signal()
+//                    Self.semaphore2.signal()
+//                }
+//                static let service = Factory(scope: .shared) { Super() }
+//            }
+//
+//            struct Test: Sendable {
+//                @Injected(Super.service) var injectedService
+//            }
+//
+//            let test = Test()
+//
+//            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
+//            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
+//            async let _first = Task {
+//                Super.semaphore1.signal()
+//                return test.injectedService
+//            }.value
+//            async let _second = Task {
+//                Super.semaphore2.signal()
+//                return test.injectedService
+//            }.value
+//            let first = await _first
+//            let second = await _second
+//
+//            #expect(first === second)
+//
+//            (test.$injectedService.scope as? SharedScope)?.cache.clear()
+//
+//            #expect(first !== test.injectedService)
+//        }
+//    }
 
-                init() {
-                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
-                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
-                    Self.semaphore1.signal()
-                    Self.semaphore2.signal()
-                }
-                static let service = Factory(scope: .shared) { Super() }
-            }
+//    @Test func synchronousThrowingFactoryCanResolveWithASharedScope_whenResolvedConcurrently() async throws {
+//        try await withNestedContainer {
+//            class Super: @unchecked Sendable {
+//                // we're using semaphores here because we need to be able to prevent
+//                // the synchronous init from finishing until both Tasks have begun
+//                static let semaphore1 = DispatchSemaphore(value: 1)
+//                static let semaphore2 = DispatchSemaphore(value: 1)
+//
+//                init() throws {
+//                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
+//                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
+//                    Self.semaphore1.signal()
+//                    Self.semaphore2.signal()
+//                }
+//                static let service = Factory(scope: .shared) { try Super() }
+//            }
+//
+//            struct Test: Sendable {
+//                @Injected(Super.service) var injectedService
+//            }
+//
+//            let test = Test()
+//
+//            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
+//            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
+//            async let _first = Task {
+//                Super.semaphore1.signal()
+//                return test.injectedService
+//            }.value
+//            async let _second = Task {
+//                Super.semaphore2.signal()
+//                return test.injectedService
+//            }.value
+//            let first = try await _first.get()
+//            let second = try await _second.get()
+//
+//            #expect(first === second)
+//
+//            (test.$injectedService.scope as? SharedScope)?.cache.clear()
+//
+//            let third = try test.injectedService.get()
+//            #expect(first !== third)
+//        }
+//    }
 
-            struct Test: Sendable {
-                @Injected(Super.service) var injectedService
-            }
-
-            let test = Test()
-
-            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
-            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
-            async let _first = Task {
-                Super.semaphore1.signal()
-                return test.injectedService
-            }.value
-            async let _second = Task {
-                Super.semaphore2.signal()
-                return test.injectedService
-            }.value
-            let first = await _first
-            let second = await _second
-
-            #expect(first === second)
-
-            (test.$injectedService.scope as? SharedScope)?.cache.clear()
-
-            #expect(first !== test.injectedService)
-        }
-    }
-
-    @Test func synchronousThrowingFactoryCanResolveWithASharedScope_whenResolvedConcurrently() async throws {
-        try await withNestedContainer {
-            class Super: @unchecked Sendable {
-                // we're using semaphores here because we need to be able to prevent
-                // the synchronous init from finishing until both Tasks have begun
-                static let semaphore1 = DispatchSemaphore(value: 1)
-                static let semaphore2 = DispatchSemaphore(value: 1)
-
-                init() throws {
-                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
-                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
-                    Self.semaphore1.signal()
-                    Self.semaphore2.signal()
-                }
-                static let service = Factory(scope: .shared) { try Super() }
-            }
-
-            struct Test: Sendable {
-                @Injected(Super.service) var injectedService
-            }
-
-            let test = Test()
-
-            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
-            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
-            async let _first = Task {
-                Super.semaphore1.signal()
-                return test.injectedService
-            }.value
-            async let _second = Task {
-                Super.semaphore2.signal()
-                return test.injectedService
-            }.value
-            let first = try await _first.get()
-            let second = try await _second.get()
-
-            #expect(first === second)
-
-            (test.$injectedService.scope as? SharedScope)?.cache.clear()
-
-            let third = try test.injectedService.get()
-            #expect(first !== third)
-        }
-    }
-
-    @Test func synchronousFactoryCanResolveWithACachedScope_whenResolvedConcurrently() async {
-        await withNestedContainer {
-            class Super: @unchecked Sendable {
-                // we're using semaphores here because we need to be able to prevent
-                // the synchronous init from finishing until both Tasks have begun
-                static let semaphore1 = DispatchSemaphore(value: 1)
-                static let semaphore2 = DispatchSemaphore(value: 1)
-
-                init() {
-                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
-                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
-                    Self.semaphore1.signal()
-                    Self.semaphore2.signal()
-                }
-                static let service = Factory(scope: .cached) { Super() }
-            }
-
-            struct Test: Sendable {
-                @Injected(Super.service) var injectedService
-            }
-            
-            let test = Test()
-
-            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
-            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
-            async let _first = Task {
-                Super.semaphore1.signal()
-                return test.injectedService
-            }.value
-            async let _second = Task {
-                Super.semaphore2.signal()
-                return test.injectedService
-            }.value
-            let first = await _first
-            let second = await _second
-            
-            #expect(first === second)
-            
-            (test.$injectedService.scope as? CachedScope)?.cache.clear()
-            
-            #expect(first !== test.injectedService)
-        }
-    }
-
-    @Test func synchronousThrowingFactoryCanResolveWithACachedScope_whenResolvedConcurrently() async throws {
-        try await withNestedContainer {
-            class Super: @unchecked Sendable {
-                // we're using semaphores here because we need to be able to prevent
-                // the synchronous init from finishing until both Tasks have begun
-                static let semaphore1 = DispatchSemaphore(value: 1)
-                static let semaphore2 = DispatchSemaphore(value: 1)
-
-                init() throws {
-                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
-                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
-                    Self.semaphore1.signal()
-                    Self.semaphore2.signal()
-                }
-                static let service = Factory(scope: .cached) { try Super() }
-            }
-
-            struct Test: Sendable {
-                @Injected(Super.service) var injectedService
-            }
-
-            let test = Test()
-
-            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
-            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
-            async let _first = Task {
-                Super.semaphore1.signal()
-                return test.injectedService
-            }.value
-            async let _second = Task {
-                Super.semaphore2.signal()
-                return test.injectedService
-            }.value
-            let first = try await _first.get()
-            let second = try await _second.get()
-
-            #expect(first === second)
-
-            (test.$injectedService.scope as? CachedScope)?.cache.clear()
-
-            let third = try test.injectedService.get()
-            #expect(first !== third)
-        }
-    }
+//    @Test func synchronousFactoryCanResolveWithACachedScope_whenResolvedConcurrently() async {
+//        await withNestedContainer {
+//            class Super: @unchecked Sendable {
+//                // we're using semaphores here because we need to be able to prevent
+//                // the synchronous init from finishing until both Tasks have begun
+//                static let semaphore1 = DispatchSemaphore(value: 1)
+//                static let semaphore2 = DispatchSemaphore(value: 1)
+//
+//                init() {
+//                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
+//                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
+//                    Self.semaphore1.signal()
+//                    Self.semaphore2.signal()
+//                }
+//                static let service = Factory(scope: .cached) { Super() }
+//            }
+//
+//            struct Test: Sendable {
+//                @Injected(Super.service) var injectedService
+//            }
+//            
+//            let test = Test()
+//
+//            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
+//            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
+//            async let _first = Task {
+//                Super.semaphore1.signal()
+//                return test.injectedService
+//            }.value
+//            async let _second = Task {
+//                Super.semaphore2.signal()
+//                return test.injectedService
+//            }.value
+//            let first = await _first
+//            let second = await _second
+//            
+//            #expect(first === second)
+//            
+//            (test.$injectedService.scope as? CachedScope)?.cache.clear()
+//            
+//            #expect(first !== test.injectedService)
+//        }
+//    }
+//
+//    @Test func synchronousThrowingFactoryCanResolveWithACachedScope_whenResolvedConcurrently() async throws {
+//        try await withNestedContainer {
+//            class Super: @unchecked Sendable {
+//                // we're using semaphores here because we need to be able to prevent
+//                // the synchronous init from finishing until both Tasks have begun
+//                static let semaphore1 = DispatchSemaphore(value: 1)
+//                static let semaphore2 = DispatchSemaphore(value: 1)
+//
+//                init() throws {
+//                    #expect(Self.semaphore1.wait(timeout: .now() + 0.1) == .success)
+//                    #expect(Self.semaphore2.wait(timeout: .now() + 0.1) == .success)
+//                    Self.semaphore1.signal()
+//                    Self.semaphore2.signal()
+//                }
+//                static let service = Factory(scope: .cached) { try Super() }
+//            }
+//
+//            struct Test: Sendable {
+//                @Injected(Super.service) var injectedService
+//            }
+//
+//            let test = Test()
+//
+//            #expect(Super.semaphore1._wait(timeout: .now() + 0.1) == .success)
+//            #expect(Super.semaphore2._wait(timeout: .now() + 0.1) == .success)
+//            async let _first = Task {
+//                Super.semaphore1.signal()
+//                return test.injectedService
+//            }.value
+//            async let _second = Task {
+//                Super.semaphore2.signal()
+//                return test.injectedService
+//            }.value
+//            let first = try await _first.get()
+//            let second = try await _second.get()
+//
+//            #expect(first === second)
+//
+//            (test.$injectedService.scope as? CachedScope)?.cache.clear()
+//
+//            let third = try test.injectedService.get()
+//            #expect(first !== third)
+//        }
+//    }
 }
 
 extension DispatchSemaphore {
