@@ -44,7 +44,7 @@ struct InjectedTests {
                     }
                 }
             
-                private var _dependency = InjectedResolver(Container.dependency)
+                private let _dependency = InjectedResolver(Container.dependency)
             
                 private var $dependency: SyncFactory<Dependency> {
                     _dependency.projectedValue
@@ -81,9 +81,120 @@ struct InjectedTests {
                     }
                 }
             
-                private var _dependency = InjectedResolver(Container.dependency)
+                private let _dependency = InjectedResolver(Container.dependency)
             
                 private var $dependency: SyncThrowingFactory<Dependency> {
+                    _dependency.projectedValue
+                }
+            }
+            """
+        }
+    }
+    
+    @Test
+    func macroSpecifyingAsyncFactory() {
+        assertMacro {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                @Injected(Container.dependency, factory: .async) private var dependency: Task<Dependency, Never>
+            }
+            """
+        } expansion: {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                private var dependency: Task<Dependency, Never> {
+                    get {
+                        _dependency.wrappedValue
+                    }
+                }
+            
+                private let _dependency = InjectedResolver(Container.dependency)
+            
+                private var $dependency: AsyncFactory<Dependency> {
+                    _dependency.projectedValue
+                }
+            }
+            """
+        }
+    }
+    
+    @Test
+    func macroSpecifyingAsyncThrowingFactory() {
+        assertMacro {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                @Injected(Container.dependency, factory: .asyncThrowing) private var dependency: Task<Dependency, any Error>
+            }
+            """
+        } expansion: {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                private var dependency: Task<Dependency, any Error> {
+                    get {
+                        _dependency.wrappedValue
+                    }
+                }
+            
+                private let _dependency = InjectedResolver(Container.dependency)
+            
+                private var $dependency: AsyncThrowingFactory<Dependency> {
+                    _dependency.projectedValue
+                }
+            }
+            """
+        }
+    }
+    
+    @Test
+    func macroAssumingStaticSyncFactory() {
+        assertMacro {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                @Injected(Container.dependency) private static var dependency: Dependency
+            }
+            """
+        } expansion: {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                private static var dependency: Dependency {
+                    get {
+                        _dependency.wrappedValue
+                    }
+                }
+            
+                private static let _dependency = InjectedResolver(Container.dependency)
+            
+                private static var $dependency: SyncFactory<Dependency> {
                     _dependency.projectedValue
                 }
             }

@@ -37,11 +37,15 @@ public struct InjectedMacro: PeerMacro, AccessorMacro {
         let factoryType = extractFactoryType(from: node)
         let innerType = innerTypeForFactory(factoryType, declaredType: type)
         let projectedType = "\(factoryType)<\(innerType)>"
+        let modifiersExcludingAccess = varDecl.modifiers.filter {
+            !["public", "internal", "fileprivate", "private"].contains($0.name.text)
+        }
 
+        let modifierPrefix = "private " + modifiersExcludingAccess.map(\.description).joined(separator: " ")
         return [
-            DeclSyntax(stringLiteral: "private var \(privateName) = InjectedResolver(\(factoryExpr))"),
+            DeclSyntax(stringLiteral: "\(modifierPrefix)let \(privateName) = InjectedResolver(\(factoryExpr))"),
             DeclSyntax(stringLiteral: """
-            private var \(projectedName): \(projectedType) {
+            \(modifierPrefix)var \(projectedName): \(projectedType) {
                 \(privateName).projectedValue
             }
             """)
