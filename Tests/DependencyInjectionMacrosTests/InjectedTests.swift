@@ -43,7 +43,7 @@ struct InjectedTests {
                     }
                 }
             
-                private let _dependency = InjectedResolver(Container.dependency)
+                private  let _dependency = InjectedResolver(Container.dependency)
             
                 private var $dependency: SyncFactory<Dependency> {
                     _dependency.projectedValue
@@ -214,6 +214,90 @@ struct InjectedTests {
                 private static let _dependency = InjectedResolver(Container.dependency)
             
                 private static var $dependency: SyncFactory<Dependency> {
+                    _dependency.projectedValue
+                }
+            }
+            """
+        }
+    }
+    
+    @Test(
+        .macros(
+          ["Injected": InjectedSyncMacro.self],
+          record: .never // Record only missing snapshots
+        )
+    )
+    func macroAssumingInternalSyncFactory() {
+        assertMacro {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                @Injected(Container.dependency) var dependency: Dependency
+            }
+            """
+        } expansion: {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+
+            public class Example {
+                var dependency: Dependency {
+                    get {
+                        _dependency.wrappedValue
+                    }
+                }
+
+                private  let _dependency = InjectedResolver(Container.dependency)
+
+                var $dependency: SyncFactory<Dependency> {
+                        _dependency.projectedValue
+                }
+            }
+            """
+        }
+    }
+    
+    @Test(
+        .macros(
+          ["Injected": InjectedSyncMacro.self],
+          record: .never // Record only missing snapshots
+        )
+    )
+    func macroWithPublicSyncFactory() {
+        assertMacro {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+            
+            public class Example {
+                @Injected(Container.dependency) public var dependency: Dependency
+            }
+            """
+        } expansion: {
+            """
+            class Dependency { }
+            extension Container {
+                static let dependency = Factory { Dependency() }
+            }
+
+            public class Example {
+                public var dependency: Dependency {
+                    get {
+                        _dependency.wrappedValue
+                    }
+                }
+
+                private  let _dependency = InjectedResolver(Container.dependency)
+
+                public var $dependency: SyncFactory<Dependency> {
                     _dependency.projectedValue
                 }
             }
