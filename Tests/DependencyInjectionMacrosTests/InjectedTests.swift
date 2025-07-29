@@ -85,7 +85,7 @@ struct InjectedTests {
                     }
                 }
             
-                private let _dependency = InjectedResolver(Container.dependency)
+                private  let _dependency = InjectedResolver(Container.dependency)
             
                 private var $dependency: SyncThrowingFactory<Dependency> {
                     _dependency.projectedValue
@@ -127,7 +127,7 @@ struct InjectedTests {
                     }
                 }
             
-                private let _dependency = InjectedResolver(Container.dependency)
+                private  let _dependency = InjectedResolver(Container.dependency)
             
                 private var $dependency: AsyncFactory<Dependency> {
                     _dependency.projectedValue
@@ -169,7 +169,7 @@ struct InjectedTests {
                     }
                 }
             
-                private let _dependency = InjectedResolver(Container.dependency)
+                private  let _dependency = InjectedResolver(Container.dependency)
             
                 private var $dependency: AsyncThrowingFactory<Dependency> {
                     _dependency.projectedValue
