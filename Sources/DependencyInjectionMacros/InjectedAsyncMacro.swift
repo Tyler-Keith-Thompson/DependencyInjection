@@ -1,8 +1,8 @@
 //
-//  Injected.swift
+//  InjectedAsyncMacro.swift
 //  DependencyInjection
 //
-//  Created by Tyler Thompson on 8/2/24.
+//  Created by Tyler Thompson on 7/29/25.
 //
 
 import Foundation
@@ -10,10 +10,10 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-public struct InjectedMacro: PeerMacro, AccessorMacro {
+public struct InjectedAsyncMacro: PeerMacro, AccessorMacro {
     // Emits:
     // - private var _dependency = InjectedResolver(factory: ...)
-    // - private var $dependency: SyncFactory<Type> { _dependency.projectedValue }
+    // - private var $dependency: AsyncFactory<Type> { _dependency.projectedValue }
     public static func expansion(
         of node: AttributeSyntax,
         providingPeersOf declaration: some DeclSyntaxProtocol,
@@ -30,12 +30,12 @@ public struct InjectedMacro: PeerMacro, AccessorMacro {
         let name = identifierPattern.identifier.text
         let privateName = "_" + name
         let projectedName = "$" + name
-        let type = typeAnnotation.type.description.trimmed
+        let type = typeAnnotation.type.description.trimmingCharacters(in: .whitespacesAndNewlines)
         let factoryExpr = try factoryExpression(from: node)
 
         // Get the factory type from @Injected<...>(...)
-        let factoryType = extractFactoryType(from: node)
-        let innerType = innerTypeForFactory(factoryType, declaredType: type)
+        let factoryType = "AsyncFactory"
+        let innerType = innerTypeForFactory(declaredType: type)
         let projectedType = "\(factoryType)<\(innerType)>"
         let modifiersExcludingAccess = varDecl.modifiers.filter {
             !["public", "internal", "fileprivate", "private"].contains($0.name.text)
@@ -50,14 +50,6 @@ public struct InjectedMacro: PeerMacro, AccessorMacro {
             }
             """)
         ]
-//        return [
-//            DeclSyntax(stringLiteral: "private var \(privateName) = InjectedResolver(\(factoryExpr))"),
-//            DeclSyntax(stringLiteral: """
-//            private var \(projectedName): SyncFactory<\(type)> {
-//                \(privateName).projectedValue
-//            }
-//            """)
-//        ]
     }
 
     // Injects: get { _dependency.wrappedValue }
@@ -87,57 +79,18 @@ public struct InjectedMacro: PeerMacro, AccessorMacro {
             return ""
         }
 
-        return first.expression.description.trimmed
+        return first.expression.description.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private static func extractFactoryType(from attr: AttributeSyntax) -> String {
-        guard let args = attr.arguments?.as(LabeledExprListSyntax.self) else {
-            return "SyncFactory"
-        }
-
-        let secondArgExpr = args.dropFirst().first?.expression
-
-        if let memberAccess = secondArgExpr?.as(MemberAccessExprSyntax.self) {
-            switch memberAccess.declName.trimmedDescription {
-            case "sync": return "SyncFactory"
-            case "syncThrowing": return "SyncThrowingFactory"
-            case "async": return "AsyncFactory"
-            case "asyncThrowing": return "AsyncThrowingFactory"
-            default: return "SyncFactory"
-            }
-        }
-
-        return "SyncFactory"
-    }
-    
-    private static func innerTypeForFactory(_ factoryType: String, declaredType: String) -> String {
-        func extractFirstGenericArgument(from type: String) -> String? {
-            guard let genericStart = type.firstIndex(of: "<"),
-                  let genericEnd = type.lastIndex(of: ">") else {
-                return nil
-            }
-
-            let inner = type[type.index(after: genericStart)..<genericEnd]
-            return inner.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: true)
-                .first?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        switch factoryType {
-        case "SyncThrowingFactory" where declaredType.starts(with: "Result<"):
-            return extractFirstGenericArgument(from: declaredType) ?? declaredType
-
-        case "AsyncFactory" where declaredType.starts(with: "Task<"), "AsyncThrowingFactory" where declaredType.starts(with: "Task<"):
-            return extractFirstGenericArgument(from: declaredType) ?? declaredType
-
-        default:
+    private static func innerTypeForFactory(declaredType: String) -> String {
+        guard let genericStart = declaredType.firstIndex(of: "<"),
+              let genericEnd = declaredType.lastIndex(of: ">") else {
             return declaredType
         }
-    }
-}
 
-private extension String {
-    var trimmed: String {
-        trimmingCharacters(in: .whitespacesAndNewlines)
+        let inner = declaredType[declaredType.index(after: genericStart)..<genericEnd]
+        return inner.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: true)
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? declaredType
     }
 }

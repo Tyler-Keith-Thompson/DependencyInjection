@@ -10,14 +10,13 @@ import MacroTesting
 
 @testable import DependencyInjectionMacros
 
-@Suite(
-  .macros(
-    ["Injected": InjectedMacro.self],
-    record: .never // Record only missing snapshots
-  )
-)
 struct InjectedTests {
-    @Test
+    @Test(
+        .macros(
+          ["Injected": InjectedSyncMacro.self],
+          record: .never // Record only missing snapshots
+        )
+    )
     func macroAssumingSyncFactory() {
         assertMacro {
             """
@@ -54,7 +53,12 @@ struct InjectedTests {
         }
     }
     
-    @Test
+    @Test(
+        .macros(
+          ["Injected": InjectedSyncThrowingMacro.self],
+          record: .never // Record only missing snapshots
+        )
+    )
     func macroSpecifyingSyncThrowingFactory() {
         assertMacro {
             """
@@ -64,7 +68,7 @@ struct InjectedTests {
             }
             
             public class Example {
-                @Injected(Container.dependency, factory: .syncThrowing) private var dependency: Result<Dependency, any Error>
+                @Injected(Container.dependency) private var dependency: Result<Dependency, any Error>
             }
             """
         } expansion: {
@@ -91,7 +95,12 @@ struct InjectedTests {
         }
     }
     
-    @Test
+    @Test(
+        .macros(
+          ["Injected": InjectedAsyncMacro.self],
+          record: .never // Record only missing snapshots
+        )
+    )
     func macroSpecifyingAsyncFactory() {
         assertMacro {
             """
@@ -101,7 +110,7 @@ struct InjectedTests {
             }
             
             public class Example {
-                @Injected(Container.dependency, factory: .async) private var dependency: Task<Dependency, Never>
+                @Injected(Container.dependency) private var dependency: Task<Dependency, Never>
             }
             """
         } expansion: {
@@ -128,7 +137,12 @@ struct InjectedTests {
         }
     }
     
-    @Test
+    @Test(
+        .macros(
+          ["Injected": InjectedAsyncThrowingMacro.self],
+          record: .never // Record only missing snapshots
+        )
+    )
     func macroSpecifyingAsyncThrowingFactory() {
         assertMacro {
             """
@@ -138,7 +152,7 @@ struct InjectedTests {
             }
             
             public class Example {
-                @Injected(Container.dependency, factory: .asyncThrowing) private var dependency: Task<Dependency, any Error>
+                @Injected(Container.dependency) private var dependency: Task<Dependency, any Error>
             }
             """
         } expansion: {
@@ -165,7 +179,12 @@ struct InjectedTests {
         }
     }
     
-    @Test
+    @Test(
+        .macros(
+          ["Injected": InjectedSyncMacro.self],
+          record: .never // Record only missing snapshots
+        )
+    )
     func macroAssumingStaticSyncFactory() {
         assertMacro {
             """

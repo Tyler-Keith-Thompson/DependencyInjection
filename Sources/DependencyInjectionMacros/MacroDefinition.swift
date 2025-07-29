@@ -7,9 +7,13 @@
 
 import SwiftCompilerPlugin
 import SwiftSyntaxMacros
-import DependencyInjectionMacros
 
 @main
 struct MyProjectMacros: CompilerPlugin {
-    var providingMacros: [Macro.Type] = [InjectedMacro.self]
+    var providingMacros: [Macro.Type] = [
+        InjectedSyncMacro.self,
+        InjectedSyncThrowingMacro.self,
+        InjectedAsyncMacro.self,
+        InjectedAsyncThrowingMacro.self
+    ]
 }
