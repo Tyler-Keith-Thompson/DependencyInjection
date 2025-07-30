@@ -45,3 +45,19 @@ public macro ConstructorInjected<T>(_ factory: AsyncFactory<T>) = #externalMacro
 @attached(accessor)
 @attached(peer, names: prefixed(_), prefixed(`$`))
 public macro ConstructorInjected<T>(_ factory: AsyncThrowingFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "ConstructorInjectedAsyncThrowingMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro LazyInjected<T>(_ factory: SyncFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "LazyInjectedSyncMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro LazyInjected<T>(_ factory: SyncThrowingFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "LazyInjectedSyncThrowingMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro LazyInjected<T>(_ factory: AsyncFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "LazyInjectedAsyncMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro LazyInjected<T>(_ factory: AsyncThrowingFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "LazyInjectedAsyncThrowingMacro")
