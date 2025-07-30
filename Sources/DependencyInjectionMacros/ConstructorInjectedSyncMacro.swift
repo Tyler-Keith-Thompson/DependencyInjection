@@ -1,16 +1,15 @@
 //
-//  Injected.swift
+//  ConstructorInjectedSyncMacro.swift
 //  DependencyInjection
 //
-//  Created by Tyler Thompson on 8/2/24.
+//  Created by Tyler Thompson on 7/29/25.
 //
 
-import Foundation
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-public struct InjectedSyncMacro: PeerMacro, AccessorMacro {
+public struct ConstructorInjectedSyncMacro: PeerMacro, AccessorMacro {
     // Emits:
     // - private var _dependency = InjectedResolver(factory: ...)
     // - private var $dependency: SyncFactory<Type> { _dependency.projectedValue }
@@ -20,7 +19,7 @@ public struct InjectedSyncMacro: PeerMacro, AccessorMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         try generateInjectedPropertyWrapperPeers(for: "SyncFactory",
-                                                 resolverType: "InjectedResolver",
+                                                 resolverType: "ConstructorInjectedResolver",
                                                  node: node,
                                                  providingPeersOf: declaration,
                                                  in: context)

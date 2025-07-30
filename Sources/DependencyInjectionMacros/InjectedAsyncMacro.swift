@@ -5,7 +5,6 @@
 //  Created by Tyler Thompson on 7/29/25.
 //
 
-import Foundation
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
@@ -20,6 +19,7 @@ public struct InjectedAsyncMacro: PeerMacro, AccessorMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         try generateInjectedPropertyWrapperPeers(for: "AsyncFactory",
+                                                 resolverType: "InjectedResolver",
                                                  node: node,
                                                  providingPeersOf: declaration,
                                                  in: context)

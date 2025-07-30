@@ -1,12 +1,11 @@
 //
-//  ConstructorInjected.swift
+//  ConstructorInjectedResolver.swift
 //  DependencyInjection
 //
-//  Created by Tyler Thompson on 8/2/24.
+//  Created by Tyler Thompson on 7/29/25.
 //
 
-@propertyWrapper
-public final class ConstructorInjected<Value, Factory: Sendable>: @unchecked Sendable {
+public final class ConstructorInjectedResolver<Value, Factory: Sendable>: @unchecked Sendable {
     public let wrappedValue: Value
     let factory: Factory
     let cleanup: () -> Void

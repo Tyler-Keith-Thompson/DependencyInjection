@@ -11,6 +11,7 @@ import SwiftSyntaxMacros
 
 extension Macro {
     static func generateInjectedPropertyWrapperPeers(for factoryType: String,
+                                                     resolverType: String,
                                                      node: AttributeSyntax,
                                                      providingPeersOf declaration: some DeclSyntaxProtocol,
                                                      in context: some MacroExpansionContext) throws -> [DeclSyntax] {
@@ -38,7 +39,7 @@ extension Macro {
 
         let modifierPrefix = modifiersExcludingAccess.joined(separator: " ")
         return [
-            DeclSyntax(stringLiteral: "private \(modifierPrefix) let \(privateName) = InjectedResolver(\(factoryExpr))"),
+            DeclSyntax(stringLiteral: "private \(modifierPrefix) let \(privateName) = \(resolverType)(\(factoryExpr))"),
             DeclSyntax(stringLiteral: """
             \(modifiers.joined(separator: " ")) var \(projectedName): \(projectedType) {
                 \(privateName).projectedValue

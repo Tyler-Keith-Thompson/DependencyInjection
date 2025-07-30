@@ -29,3 +29,19 @@ public macro Injected<T>(_ factory: AsyncFactory<T>) = #externalMacro(module: "D
 @attached(accessor)
 @attached(peer, names: prefixed(_), prefixed(`$`))
 public macro Injected<T>(_ factory: AsyncThrowingFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "InjectedAsyncThrowingMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro ConstructorInjected<T>(_ factory: SyncFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "ConstructorInjectedSyncMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro ConstructorInjected<T>(_ factory: SyncThrowingFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "ConstructorInjectedSyncThrowingMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro ConstructorInjected<T>(_ factory: AsyncFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "ConstructorInjectedAsyncMacro")
+
+@attached(accessor)
+@attached(peer, names: prefixed(_), prefixed(`$`))
+public macro ConstructorInjected<T>(_ factory: AsyncThrowingFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "ConstructorInjectedAsyncThrowingMacro")

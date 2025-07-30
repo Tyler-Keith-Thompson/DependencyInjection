@@ -20,6 +20,7 @@ public struct InjectedAsyncThrowingMacro: PeerMacro, AccessorMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         try generateInjectedPropertyWrapperPeers(for: "AsyncThrowingFactory",
+                                                 resolverType: "InjectedResolver",
                                                  node: node,
                                                  providingPeersOf: declaration,
                                                  in: context)

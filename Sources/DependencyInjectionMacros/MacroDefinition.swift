@@ -14,6 +14,10 @@ struct MyProjectMacros: CompilerPlugin {
         InjectedSyncMacro.self,
         InjectedSyncThrowingMacro.self,
         InjectedAsyncMacro.self,
-        InjectedAsyncThrowingMacro.self
+        InjectedAsyncThrowingMacro.self,
+        ConstructorInjectedSyncMacro.self,
+        ConstructorInjectedSyncThrowingMacro.self,
+        ConstructorInjectedAsyncMacro.self,
+        ConstructorInjectedAsyncThrowingMacro.self,
     ]
 }
