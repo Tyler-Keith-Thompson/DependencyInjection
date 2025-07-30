@@ -21,9 +21,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-service-context", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-atomics.git", from: "1.2.0"),
-        .package(url: "https://github.com/swiftlang/swift-syntax", "509.0.0"..<"600.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", "509.0.0"..<"700.0.0"),
         .package(url: "https://github.com/pointfreeco/swift-macro-testing.git", from: "0.6.3"),
-//        .package(url: "https://github.com/stackotter/swift-macro-toolkit.git", from: "0.6.0"),
     ],
     targets: [
         // Macro implementation that performs the source transformations.
