@@ -5,15 +5,6 @@
 //  Created by Tyler Thompson on 7/27/25.
 //
 
-import DependencyInjectionMacros
-
-public enum InjectedFactoryKind {
-    case sync
-    case syncThrowing
-    case async
-    case asyncThrowing
-}
-
 @attached(accessor)
 @attached(peer, names: prefixed(_), prefixed(`$`))
 public macro Injected<T>(_ factory: SyncFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "InjectedSyncMacro")
