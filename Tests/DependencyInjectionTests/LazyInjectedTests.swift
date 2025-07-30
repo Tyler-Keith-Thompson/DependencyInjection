@@ -11,7 +11,7 @@ import DependencyInjection
 struct LazyInjectedTests {
     @Test func lazyInjectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime() async throws {
         class Example {
-            @LazyInjected(Container.exampleDependency) var dependency
+            @LazyInjected(Container.exampleDependency) var dependency: ExampleDependency
         }
         
         withTestContainer {
@@ -31,7 +31,7 @@ struct LazyInjectedTests {
     
     @Test func lazyInjectedPropertyWrapper_WithSyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @LazyInjected(Container.exampleThrowingDependency) var dependency
+            @LazyInjected(Container.exampleThrowingDependency) var dependency: Result<ExampleThrowingDependency, any Error>
         }
         
         try withTestContainer {
@@ -52,7 +52,7 @@ struct LazyInjectedTests {
     
     @Test func lazyInjectedPropertyWrapper_WithAsyncFactory_ResolvesEveryTime() async throws {
         class Example {
-            @LazyInjected(Container.exampleAsyncDependency) var dependency
+            @LazyInjected(Container.exampleAsyncDependency) var dependency: Task<ExampleAsyncDependency, Never>
         }
         
         await withTestContainer {
@@ -82,7 +82,7 @@ struct LazyInjectedTests {
     
     @Test func lazyInjectedPropertyWrapper_WithAsyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @LazyInjected(Container.exampleAsyncThrowingDependency) var dependency
+            @LazyInjected(Container.exampleAsyncThrowingDependency) var dependency: Task<ExampleAsyncThrowingDependency, any Error>
         }
         
         try await withTestContainer {

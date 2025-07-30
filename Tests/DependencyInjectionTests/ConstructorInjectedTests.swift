@@ -11,7 +11,7 @@ import DependencyInjection
 struct ConstructorInjectedTests {
     @Test func constructorInjectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime() async throws {
         class Example {
-            @ConstructorInjected(Container.exampleDependency) var dependency
+            @ConstructorInjected(Container.exampleDependency) var dependency: ExampleDependency
         }
         
         withTestContainer {
@@ -32,7 +32,7 @@ struct ConstructorInjectedTests {
     
     @Test func constructorInjectedPropertyWrapper_WithSyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @ConstructorInjected(Container.exampleThrowingDependency) var dependency
+            @ConstructorInjected(Container.exampleThrowingDependency) var dependency: Result<ExampleThrowingDependency, any Error>
         }
         
         try withTestContainer {
@@ -54,7 +54,7 @@ struct ConstructorInjectedTests {
     
     @Test func constructorInjectedPropertyWrapper_WithAsyncFactory_ResolvesEveryTime() async throws {
         class Example {
-            @ConstructorInjected(Container.exampleAsyncDependency) var dependency
+            @ConstructorInjected(Container.exampleAsyncDependency) var dependency: Task<ExampleAsyncDependency, Never>
         }
         
         await withTestContainer {
@@ -83,7 +83,7 @@ struct ConstructorInjectedTests {
     
     @Test func constructorInjectedPropertyWrapper_WithAsyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @ConstructorInjected(Container.exampleAsyncThrowingDependency) var dependency
+            @ConstructorInjected(Container.exampleAsyncThrowingDependency) var dependency: Task<ExampleAsyncThrowingDependency, any Error>
         }
         
         try await withTestContainer {

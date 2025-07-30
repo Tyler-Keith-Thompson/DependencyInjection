@@ -1,45 +1,61 @@
 //
-//  ConstructorInjected.swift
+//  LazyInjectedResolver.swift
 //  DependencyInjection
 //
-//  Created by Tyler Thompson on 8/2/24.
+//  Created by Tyler Thompson on 7/29/25.
 //
 
-@propertyWrapper
-public final class ConstructorInjected<Value, Factory: Sendable>: @unchecked Sendable {
-    public let wrappedValue: Value
+import Foundation
+
+public final class LazyInjectedResolver<Value, Factory: Sendable> {
     let factory: Factory
+    let getter: @Sendable () -> Value
     let cleanup: () -> Void
-    public init(_ factory: SyncFactory<Value>) where Factory == SyncFactory<Value> {
-        wrappedValue = factory()
+    private let lock = NSRecursiveLock()
+    
+    public init(_ factory: Factory) where Factory == SyncFactory<Value> {
+        getter = { factory() }
         self.factory = factory
         cleanup = { }
     }
-
+    
     public init<D>(_ factory: Factory) where Factory == SyncThrowingFactory<D>, Value == Result<D, any Error> {
-        wrappedValue = Result { try factory() }
+        getter = { Result { try factory() } }
         self.factory = factory
         cleanup = { }
     }
     
     public init<D>(_ factory: Factory) where Factory == AsyncFactory<D>, Value == Task<D, Never> {
         let task = Task { await factory() }
-        wrappedValue = task
+        getter = { task }
         self.factory = factory
         cleanup = task.cancel
     }
     
     public init<D>(_ factory: Factory) where Factory == AsyncThrowingFactory<D>, Value == Task<D, any Error> {
         let task = Task { try await factory() }
-        wrappedValue = task
+        getter = { task }
         self.factory = factory
         cleanup = task.cancel
     }
     
-    deinit {
-        cleanup()
-    }
+    private var _wrappedValue: Value?
     
+    public var wrappedValue: Value {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            
+            if let _wrappedValue {
+                return _wrappedValue
+            }
+            
+            let dependency = getter()
+            _wrappedValue = dependency
+            return dependency
+        }
+    }
+
     public var projectedValue: Factory {
         factory
     }

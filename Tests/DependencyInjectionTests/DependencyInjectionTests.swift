@@ -532,7 +532,7 @@ struct DependencyInjectionTests {
             }
 
             struct Test: Sendable {
-                @Injected(Super.service) var injectedService
+                @Injected(Super.service) var injectedService: Super
             }
 
             let test = Test()
@@ -576,7 +576,7 @@ struct DependencyInjectionTests {
             }
 
             struct Test: Sendable {
-                @Injected(Super.service) var injectedService
+                @Injected(Super.service) var injectedService: Result<Super, any Error>
             }
 
             let test = Test()
@@ -621,7 +621,7 @@ struct DependencyInjectionTests {
             }
 
             struct Test: Sendable {
-                @Injected(Super.service) var injectedService
+                @Injected(Super.service) var injectedService: Super
             }
             
             let test = Test()
@@ -665,7 +665,7 @@ struct DependencyInjectionTests {
             }
 
             struct Test: Sendable {
-                @Injected(Super.service) var injectedService
+                @Injected(Super.service) var injectedService: Result<Super, any Error>
             }
 
             let test = Test()

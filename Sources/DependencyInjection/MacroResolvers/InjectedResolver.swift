@@ -1,12 +1,11 @@
 //
-//  Injected.swift
+//  InjectedResolver.swift
 //  DependencyInjection
 //
-//  Created by Tyler Thompson on 8/2/24.
+//  Created by Tyler Thompson on 7/28/25.
 //
 
-@propertyWrapper
-public struct Injected<Value, Factory: Sendable>: Sendable {
+public struct InjectedResolver<Value, Factory: Sendable>: Sendable {
     let factory: Factory
     let getter: @Sendable () -> Value
     public init(_ factory: Factory) where Factory == SyncFactory<Value> {

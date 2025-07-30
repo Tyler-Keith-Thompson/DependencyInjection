@@ -7,11 +7,12 @@
 
 import Testing
 import DependencyInjection
+import DependencyInjectionMacros
 
 struct InjectedPropertyWrapperTests {
     @Test func injectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime() async throws {
         class Example {
-            @Injected(Container.exampleDependency) var dependency
+            @Injected(Container.exampleDependency) var dependency: ExampleDependency
         }
         
         withTestContainer {
@@ -30,7 +31,7 @@ struct InjectedPropertyWrapperTests {
     
     @Test func injectedPropertyWrapper_WithSyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @Injected(Container.exampleThrowingDependency) var dependency
+            @Injected(Container.exampleThrowingDependency) var dependency: Result<ExampleThrowingDependency, any Error>
         }
         
         try withTestContainer {
@@ -50,7 +51,7 @@ struct InjectedPropertyWrapperTests {
     
     @Test func injectedPropertyWrapper_WithAsyncFactory_ResolvesEveryTime() async throws {
         class Example {
-            @Injected(Container.exampleAsyncDependency) var dependency
+            @Injected(Container.exampleAsyncDependency) var dependency: Task<ExampleAsyncDependency, Never>
         }
         
         await withTestContainer {
@@ -76,7 +77,7 @@ struct InjectedPropertyWrapperTests {
     
     @Test func injectedPropertyWrapper_WithAsyncThrowingFactory_ResolvesEveryTime() async throws {
         class Example {
-            @Injected(Container.exampleAsyncThrowingDependency) var dependency
+            @Injected(Container.exampleAsyncThrowingDependency) var dependency: Task<ExampleAsyncThrowingDependency, any Error>
         }
         
         try await withTestContainer {
@@ -97,6 +98,24 @@ struct InjectedPropertyWrapperTests {
             #expect(try await example.dependency.value === expected)
             #expect(try await example.dependency.value === expected)
             #expect(try await test.count == 2)
+        }
+    }
+    
+    @Test func injectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime_EvenWhenStatic_WithSwift6() async throws {
+        class Example {
+            @Injected(Container.exampleDependency) static var dependency: ExampleDependency
+        }
+        
+        withTestContainer {
+            let expected = ExampleDependency()
+            var count = 0
+            Container.exampleDependency.register {
+                count += 1
+                return expected
+            }
+            #expect(Example.dependency === expected)
+            #expect(Example.dependency === expected)
+            #expect(count == 2)
         }
     }
 }
