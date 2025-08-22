@@ -6,6 +6,7 @@
 //
 
 import Testing
+import Dispatch
 import DependencyInjection
 
 struct TestContainerTests {
@@ -122,6 +123,27 @@ struct TestContainerTests {
             factory.popRegistration()
             let resolved = try await factory()
             #expect(resolved === val)
+        }
+    }
+    
+    class ICannotBelievePeopleDoThis {
+        init(factory: SyncFactory<Bool>) {
+            Task {
+                try await Task.sleep(nanoseconds: 100000)
+                #expect(factory() == true)
+            }
+        }
+    }
+    @Test func whatIfWeCouldPreventLeaks_ThatWouldBeReallyCool() async throws {
+        let factory = Factory { true }
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            ICannotBelievePeopleDoThis(factory: factory)
+        }
+        
+        try await withTestContainer(unregisteredBehavior: failTestBehavior) { // second test
+            try await Task {
+                try await Task.sleep(nanoseconds: 10000000)
+            }.value // wait for it
         }
     }
 }

@@ -6,63 +6,72 @@
 //
 import Foundation
 import ServiceContextModule
+import Atomics
 
 final class TestContainer: Container, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     let unregisteredBehavior: UnregisteredBehavior
+    let leakedResolutionBehavior: any LeakedResolutionBehavior
     let _parent: Container
     private var storage = [AnyHashable: StorageBase]()
+
+    private var _executingTest = ManagedAtomic(false)
+    var executingTest: Bool {
+        get { _executingTest.load(ordering: .sequentiallyConsistent) }
+        set { _executingTest.store(newValue, ordering: .sequentiallyConsistent) }
+    }
     
-    init(parent: Container, unregisteredBehavior: UnregisteredBehavior) {
+    init(parent: Container, unregisteredBehavior: UnregisteredBehavior, leakedResolutionBehavior: any LeakedResolutionBehavior) {
         self.unregisteredBehavior = unregisteredBehavior
+        self.leakedResolutionBehavior = leakedResolutionBehavior
         self._parent = parent
         super.init(parent: parent)
     }
     
     override func resolve<D>(factory: SyncFactory<D>) -> D {
         if storage(for: factory).syncRegistrations.currentResolver() != nil {
-            switch unregisteredBehavior {
-            case .fatalError:
-                fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
-            case .custom(let action):
-                action("\(factory)")
+            #if DEBUG
+            guard executingTest else {
+                return leakedResolutionBehavior.resolve(factory: factory)
             }
+            #endif
+            unregisteredBehavior.trigger(factory: factory, dependency: D.self)
         }
         return _parent.resolve(factory: factory)
     }
     
     override func resolve<D>(factory: SyncThrowingFactory<D>) throws -> D {
         if storage(for: factory).syncThrowingRegistrations.currentResolver() != nil {
-            switch unregisteredBehavior {
-            case .fatalError:
-                fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
-            case .custom(let action):
-                action("\(factory)")
+            #if DEBUG
+            guard executingTest else {
+                return try leakedResolutionBehavior.resolve(factory: factory)
             }
+            #endif
+            unregisteredBehavior.trigger(factory: factory, dependency: D.self)
         }
         return try _parent.resolve(factory: factory)
     }
 
     override func resolve<D>(factory: AsyncFactory<D>) async -> D {
         if storage(for: factory).asyncRegistrations.currentResolver() != nil {
-            switch unregisteredBehavior {
-            case .fatalError:
-                fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
-            case .custom(let action):
-                action("\(factory)")
+            #if DEBUG
+            guard executingTest else {
+                return await leakedResolutionBehavior.resolve(factory: factory)
             }
+            #endif
+            unregisteredBehavior.trigger(factory: factory, dependency: D.self)
         }
         return await _parent.resolve(factory: factory)
     }
 
     override func resolve<D>(factory: AsyncThrowingFactory<D>) async throws -> D {
         if storage(for: factory).asyncThrowingRegistrations.currentResolver() != nil {
-            switch unregisteredBehavior {
-            case .fatalError:
-                fatalError("Dependency: \(D.self) on factory: \(factory) not registered!")
-            case .custom(let action):
-                action("\(factory)")
+            unregisteredBehavior.trigger(factory: factory, dependency: D.self)
+            #if DEBUG
+            guard executingTest else {
+                return try await leakedResolutionBehavior.resolve(factory: factory)
             }
+            #endif
         }
         return try await _parent.resolve(factory: factory)
     }
@@ -106,24 +115,161 @@ final class TestContainer: Container, @unchecked Sendable {
     }
 }
 
+public enum LeakedResolutionStrategy<D> {
+    case returnValue(D)
+    case useProductionValue
+}
+public protocol LeakedResolutionBehavior {
+    func onLeak<D>(factory: SyncFactory<D>) -> LeakedResolutionStrategy<D>
+    func onLeak<D>(factory: SyncThrowingFactory<D>) throws -> LeakedResolutionStrategy<D>
+    func onLeak<D>(factory: AsyncFactory<D>) async -> LeakedResolutionStrategy<D>
+    func onLeak<D>(factory: AsyncThrowingFactory<D>) async throws -> LeakedResolutionStrategy<D>
+}
+
+extension LeakedResolutionBehavior {
+    func resolve<D>(factory: SyncFactory<D>) -> D {
+        // TODO: Log leak
+        switch onLeak(factory: factory) {
+        case .returnValue(let value): return value
+        case .useProductionValue: return factory.resolver()
+        }
+    }
+    
+    func resolve<D>(factory: SyncThrowingFactory<D>) throws -> D {
+        // TODO: Log leak
+        switch try onLeak(factory: factory) {
+        case .returnValue(let value): return value
+        case .useProductionValue: return try factory.resolver()
+        }
+    }
+    
+    func resolve<D>(factory: AsyncFactory<D>) async -> D {
+        // TODO: Log leak
+        switch await onLeak(factory: factory) {
+        case .returnValue(let value): return value
+        case .useProductionValue: return await factory.resolver()
+        }
+    }
+    
+    func resolve<D>(factory: AsyncThrowingFactory<D>) async throws -> D {
+        // TODO: Log leak
+        switch try await onLeak(factory: factory) {
+        case .returnValue(let value): return value
+        case .useProductionValue: return try await factory.resolver()
+        }
+    }
+}
+
+enum ResolutionError: Error {
+    case leakedResolution
+}
+
+public struct DefaultLeakedResolutionBehavior: LeakedResolutionBehavior {
+    public init() { }
+    
+    public func onLeak<D>(factory: SyncFactory<D>) -> LeakedResolutionStrategy<D> {
+        // environment variable DO_BEST_EFFORT_RESOLUTION=true
+        // crashy crashy
+        // First step, let's cancel the current task (if any, they might've used GCD)
+        // Theoretically this should stop many possible bad things happening (like network requests)
+        withUnsafeCurrentTask { $0?.cancel() }        
+
+        // if there is one, we can use a supplied test value
+        
+        // Next, let's see if we can pick some sane default behavior
+        // For example, if this returns an optional, can we just return nil?
+        if _isOptional(D.self) {
+            return .returnValue(Optional<D>.none as! D)
+        }
+        
+        // if all else fails, we canceled the task...just let it use the prod dependency over crashing
+        return .useProductionValue
+    }
+    
+    public func onLeak<D>(factory: SyncThrowingFactory<D>) throws -> LeakedResolutionStrategy<D> {
+        // First step, let's cancel the current task (if any, they might've used GCD)
+        // Theoretically this should stop many possible bad things happening (like network requests)
+        withUnsafeCurrentTask { $0?.cancel() }
+        throw ResolutionError.leakedResolution
+    }
+    
+    public func onLeak<D>(factory: AsyncFactory<D>) async -> LeakedResolutionStrategy<D> where D : Sendable {
+        // we know we're executing in a task, let's just suspend indefinitely
+        await withUnsafeContinuation { (_: UnsafeContinuation<Never, Never>) in
+            // never resume
+        }
+    }
+    
+    public func onLeak<D>(factory: AsyncThrowingFactory<D>) async throws -> LeakedResolutionStrategy<D> where D : Sendable {
+        // we know we're executing in a task, let's just suspend indefinitely
+        await withUnsafeContinuation { (_: UnsafeContinuation<Never, Never>) in
+            // never resume
+        }
+    }
+}
+
+//public enum LeakedResolutionBehavior {
+//    case readFromEnvironment // default
+//    case bestEffortResolveSomething
+//    case crash
+//    case crashIfNoTestValue
+//    case custom(@Sendable (String) -> Void)
+//}
+
 public enum UnregisteredBehavior {
     case fatalError
     @available(*, deprecated, message: "Warning! Using a custom action will still resolve production dependencies unless you manually stop code execution.")
     case custom(@Sendable (String) -> Void)
+    
+    func trigger<T, D>(factory: T, dependency: D.Type) {
+        switch self {
+        case .fatalError:
+            Swift.fatalError("Dependency: \(dependency) on factory: \(factory) not registered!")
+        case .custom(let action):
+            action("\(factory)")
+        }
+    }
 }
 
-public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () throws -> T) rethrows -> T {
+@discardableResult
+public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError,
+                                 leakedResolutionBehavior: any LeakedResolutionBehavior = DefaultLeakedResolutionBehavior(),
+                                 operation: () throws -> T) rethrows -> T {
     var context = ServiceContext.inUse
+    let originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
     Container.default.fatalErrorOnResolve = true
-    defer { Container.default.fatalErrorOnResolve = false }
-    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
-    return try ServiceContext.withValue(context, operation: operation)
+    defer {
+        Container.default.fatalErrorOnResolve = originalFatalErrorOnResolveValue
+    }
+    let testContainer = TestContainer(parent: Container(parent: Container.current),
+                                      unregisteredBehavior: unregisteredBehavior,
+                                      leakedResolutionBehavior: leakedResolutionBehavior)
+    context.container = testContainer
+    return try ServiceContext.withValue(context, operation: {
+        testContainer.executingTest = true
+        defer { testContainer.executingTest = false }
+        return try operation()
+    })
 }
 
-public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation, unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () async throws -> T) async rethrows -> T {
+@discardableResult
+public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
+                                 unregisteredBehavior: UnregisteredBehavior = .fatalError,
+                                 leakedResolutionBehavior: any LeakedResolutionBehavior = DefaultLeakedResolutionBehavior(),
+                                 operation: () async throws -> T) async rethrows -> T {
     var context = ServiceContext.inUse
+    let originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
     Container.default.fatalErrorOnResolve = true
-    defer { Container.default.fatalErrorOnResolve = false }
-    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
-    return try await ServiceContext.withValue(context, operation: operation)
+    defer {
+        Container.default.fatalErrorOnResolve = originalFatalErrorOnResolveValue
+    }
+    let testContainer = TestContainer(parent: Container(parent: Container.current),
+                                      unregisteredBehavior: unregisteredBehavior,
+                                      leakedResolutionBehavior: leakedResolutionBehavior)
+    context.container = testContainer
+    return try await ServiceContext.withValue(context, operation: {
+        testContainer.executingTest = true
+        defer { testContainer.executingTest = false }
+        return try await operation()
+    })
 }
