@@ -62,6 +62,7 @@ void swift_async_hooks_install(void) {
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 
 // Define dispatch types for Linux (these might not be available in headers)
 typedef struct dispatch_queue_s *dispatch_queue_t;
@@ -71,12 +72,60 @@ typedef unsigned long long dispatch_time_t;
 // We'll use dlsym to get the real functions
 
 // Function pointers to the real libdispatch functions
+static void (*real_dispatch_async)(dispatch_queue_t queue, void *block);
 static void (*real_dispatch_async_f)(dispatch_queue_t queue, void *context, dispatch_function_t work);
 static void (*real_dispatch_after_f)(dispatch_time_t when, dispatch_queue_t queue, void *context, dispatch_function_t work);
 
 // External declarations for Swift bridge functions (will be resolved by linker)
 extern void* getCurrentContainer(void);
 extern void executeWithContainer(void* containerPtr, dispatch_function_t originalWork, void* context);
+extern void* transformBlockWithContainer(void* containerPtr, void* block);
+
+// C-based block registry to keep Swift blocks alive
+#define MAX_BLOCKS 1024
+static void* block_registry[MAX_BLOCKS];
+static int next_block_id = 1;
+static pthread_mutex_t registry_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Store a block in the registry and return its ID
+static int store_block(void* block) {
+    pthread_mutex_lock(&registry_mutex);
+    
+    if (next_block_id >= MAX_BLOCKS) {
+        printf("❌ Block registry full!\n");
+        fflush(stdout);
+        pthread_mutex_unlock(&registry_mutex);
+        return 0;
+    }
+    
+    int block_id = next_block_id++;
+    block_registry[block_id] = block;
+    
+    printf("🔄 Stored block %p with ID: %d\n", block, block_id);
+    fflush(stdout);
+    
+    pthread_mutex_unlock(&registry_mutex);
+    return block_id;
+}
+
+// Get a block from the registry by ID
+static void* get_block(int block_id) {
+    pthread_mutex_lock(&registry_mutex);
+    
+    if (block_id <= 0 || block_id >= MAX_BLOCKS) {
+        printf("❌ Invalid block ID: %d\n", block_id);
+        fflush(stdout);
+        pthread_mutex_unlock(&registry_mutex);
+        return NULL;
+    }
+    
+    void* block = block_registry[block_id];
+    pthread_mutex_unlock(&registry_mutex);
+    
+    return block;
+}
+
+
 
 // Wrapper context structure
 struct wrapper_context {
@@ -101,6 +150,43 @@ static void container_wrapper_work(void* ctx) {
 }
 
 
+
+// Our interposed dispatch_async function - this will be called instead of the real one
+void dispatch_async(dispatch_queue_t queue, void *block) {
+    printf("🎯 dispatch_async() intercepted on Linux!\n");
+    fflush(stdout);
+    
+    // Get the current container from Swift
+    printf("🔍 Getting current container from Swift\n");
+    fflush(stdout);
+    
+    void* containerPtr = getCurrentContainer();
+    printf("🔍 Got container: %p\n", containerPtr);
+    fflush(stdout);
+    
+    // Transform the block to preserve container context
+    void* wrappedBlock = transformBlockWithContainer(containerPtr, block);
+    printf("🔍 Got wrapped block: %p\n", wrappedBlock);
+    fflush(stdout);
+    
+    // Store the wrapped block in our C registry to keep it alive
+    int block_id = store_block(wrappedBlock);
+    if (block_id == 0) {
+        printf("❌ Failed to store block in registry!\n");
+        fflush(stdout);
+        return;
+    }
+    
+    // Call the real dispatch_async with our wrapped block
+    if (real_dispatch_async) {
+        printf("🔍 Calling real dispatch_async with wrapped block\n");
+        fflush(stdout);
+        real_dispatch_async(queue, wrappedBlock);
+    } else {
+        printf("❌ real_dispatch_async is NULL!\n");
+        fflush(stdout);
+    }
+}
 
 // Our interposed dispatch_async_f function - this will be called instead of the real one
 void dispatch_async_f(dispatch_queue_t queue, void *context, dispatch_function_t work) {
@@ -201,18 +287,21 @@ static void install_linux_hooks(void) {
         return;
     }
     
-    real_dispatch_async_f = dlsym(libdispatch, "dispatch_async_f");
-    real_dispatch_after_f = dlsym(libdispatch, "dispatch_after_f");
-    
-    printf("🔧 real_dispatch_async_f: %p\n", real_dispatch_async_f);
-    printf("🔧 real_dispatch_after_f: %p\n", real_dispatch_after_f);
-    fflush(stdout);
-    
-    if (!real_dispatch_async_f || !real_dispatch_after_f) {
-        printf("❌ Failed to find dispatch functions in libdispatch.so!\n");
-        fflush(stdout);
-        return;
-    }
+               // Use RTLD_NEXT to get the real functions (not our interposed ones)
+           real_dispatch_async = dlsym(RTLD_NEXT, "dispatch_async");
+           real_dispatch_async_f = dlsym(RTLD_NEXT, "dispatch_async_f");
+           real_dispatch_after_f = dlsym(RTLD_NEXT, "dispatch_after_f");
+           
+           printf("🔧 real_dispatch_async: %p\n", real_dispatch_async);
+           printf("🔧 real_dispatch_async_f: %p\n", real_dispatch_async_f);
+           printf("🔧 real_dispatch_after_f: %p\n", real_dispatch_after_f);
+           fflush(stdout);
+           
+           if (!real_dispatch_async || !real_dispatch_async_f || !real_dispatch_after_f) {
+               printf("❌ Failed to find dispatch functions in libdispatch.so!\n");
+               fflush(stdout);
+               return;
+           }
     
 
     printf("✅ Successfully set up interposition - our functions will now be called!\n");
