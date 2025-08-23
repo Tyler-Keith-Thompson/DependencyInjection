@@ -45,7 +45,7 @@ let package = Package(
         ),
         .target(
             name: "DispatchInterpose",
-            publicHeadersPath: "include"
+            publicHeadersPath: "Include"
         ),
         .testTarget(
             name: "DependencyInjectionTests",
