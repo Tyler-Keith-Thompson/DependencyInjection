@@ -1,3 +1,6 @@
+#import "simple_rebind.h"
+#import "DispatchInterpose.h"
+
 #if defined(__APPLE__) || defined(__MACH__)
 
 //
@@ -6,10 +9,6 @@
 //
 //  Created by Tyler Thompson on 8/22/25.
 //
-
-// DispatchInterpose.m
-#import "simple_rebind.h"
-#import "DispatchInterpose.h" // your header that declares swift_async_hooks_install
 
 // Swift shim that wraps the block
 extern void *transformBlock(void *block);
@@ -53,8 +52,6 @@ void swift_async_hooks_install(void) {
 
 #else
 // Non-Darwin platforms - provide stub implementation
-#import "DispatchInterpose.h"
-
 void swift_async_hooks_install(void) {
     // No-op on non-Darwin platforms
 }

@@ -1,6 +1,6 @@
-#if defined(__APPLE__) || defined(__MACH__)
-
 #include "simple_rebind.h"
+
+#if defined(__APPLE__) || defined(__MACH__)
 
 #include <dlfcn.h>
 #include <mach/mach.h>
@@ -198,8 +198,6 @@ int rebind_symbols(struct rebinding rebindings[], size_t rebindings_nel) {
 
 #else
 // Non-Darwin platforms - provide stub implementations
-#include "simple_rebind.h"
-
 int rebind_symbols(struct rebinding rebindings[], size_t rebindings_nel) {
     // No-op on non-Darwin platforms
     (void)rebindings;
