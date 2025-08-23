@@ -139,7 +139,6 @@ struct TestContainerTests {
         }
     }
     
-    #if canImport(Darwin)
     @Test func whatIfWeCouldPreventLeaks_ThatWouldBeReallyCool() async throws {
         let factory = Factory { true }
         withTestContainer(unregisteredBehavior: failTestBehavior) {
@@ -157,5 +156,4 @@ struct TestContainerTests {
             }.value // wait for it
         }
     }
-    #endif
 }
