@@ -66,12 +66,12 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: AsyncThrowingFactory<D>) async throws -> D {
         if storage(for: factory).asyncThrowingRegistrations.currentResolver() != nil {
-            unregisteredBehavior.trigger(factory: factory, dependency: D.self)
             #if DEBUG
             guard executingTest else {
                 return try await leakedResolutionBehavior.resolve(factory: factory)
             }
             #endif
+            unregisteredBehavior.trigger(factory: factory, dependency: D.self)
         }
         return try await _parent.resolve(factory: factory)
     }
@@ -193,14 +193,14 @@ public struct DefaultLeakedResolutionBehavior: LeakedResolutionBehavior {
         throw ResolutionError.leakedResolution
     }
     
-    public func onLeak<D>(factory: AsyncFactory<D>) async -> LeakedResolutionStrategy<D> where D : Sendable {
+    public func onLeak<D>(factory: AsyncFactory<D>) async -> LeakedResolutionStrategy<D> {
         // we know we're executing in a task, let's just suspend indefinitely
         await withUnsafeContinuation { (_: UnsafeContinuation<Never, Never>) in
             // never resume
         }
     }
     
-    public func onLeak<D>(factory: AsyncThrowingFactory<D>) async throws -> LeakedResolutionStrategy<D> where D : Sendable {
+    public func onLeak<D>(factory: AsyncThrowingFactory<D>) async throws -> LeakedResolutionStrategy<D> {
         // we know we're executing in a task, let's just suspend indefinitely
         await withUnsafeContinuation { (_: UnsafeContinuation<Never, Never>) in
             // never resume
