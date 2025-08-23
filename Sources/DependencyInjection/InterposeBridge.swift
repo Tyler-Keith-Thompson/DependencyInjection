@@ -18,20 +18,30 @@ func transformBlock(block: @escaping @convention(block) () -> Void) -> @conventi
     }
 }
 #else
-// Linux: Provide container access functions for C code
-@_cdecl("get_current_container")
-public func get_current_container() -> UnsafeMutableRawPointer? {
-    print("🔍 get_current_container() called from C code!")
-    return Unmanaged.passUnretained(Container.current).toOpaque()
+// Linux: Execute work function with container context
+@_cdecl("executeWithContainer")
+public func executeWithContainer(containerPtr: UnsafeMutableRawPointer?, originalWork: @escaping @convention(c) (UnsafeMutableRawPointer?) -> Void, context: UnsafeMutableRawPointer?) {
+    print("🔄 executeWithContainer() called from C code!")
+    
+    guard let containerPtr = containerPtr else {
+        print("🔄 No container provided, executing work directly")
+        originalWork(context)
+        return
+    }
+    
+    let container = Unmanaged<Container>.fromOpaque(containerPtr).takeUnretainedValue()
+    print("🔄 Executing with container: \(type(of: container))")
+    
+    withContainer(container) {
+        originalWork(context)
+    }
 }
 
-@_cdecl("set_current_container")
-public func set_current_container(_ containerPtr: UnsafeMutableRawPointer?) {
-    print("🔧 set_current_container() called from C code with pointer: \(String(describing: containerPtr))")
-    guard let containerPtr = containerPtr else { return }
-    let container = Unmanaged<Container>.fromOpaque(containerPtr).takeUnretainedValue()
-    print("🔧 Container type: \(type(of: container))")
-    // For now, just print - we'll implement the actual setting later
+// Linux: Get current container for C code
+@_cdecl("getCurrentContainer")
+public func getCurrentContainer() -> UnsafeMutableRawPointer? {
+    print("🔍 getCurrentContainer() called from C code!")
+    return Unmanaged.passUnretained(Container.current).toOpaque()
 }
 #endif
 
