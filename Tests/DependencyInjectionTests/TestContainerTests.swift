@@ -128,9 +128,12 @@ struct TestContainerTests {
     }
     
     class ICannotBelievePeopleDoThis {
-        init(factory: SyncFactory<Bool>) {
+        @discardableResult init(factory: SyncFactory<Bool>) {
             Task {
                 try await Task.sleep(nanoseconds: 100000)
+                #expect(factory() == true)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(1)) {
                 #expect(factory() == true)
             }
         }
@@ -139,12 +142,10 @@ struct TestContainerTests {
         let factory = Factory { true }
         withTestContainer(unregisteredBehavior: failTestBehavior) {
             swift_async_hooks_install()
-            let testContainer = Container.current // verified it is a test container
             // Make it visible to ALL capture paths for the duration of the scope:
             ICannotBelievePeopleDoThis(factory: factory)
             DispatchQueue.main.async {
-                print("ASYNC")
-                print("")
+                #expect(Container.current is TestContainer)
             }
         }
         
