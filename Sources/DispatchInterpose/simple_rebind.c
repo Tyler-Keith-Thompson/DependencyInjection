@@ -196,4 +196,15 @@ int rebind_symbols(struct rebinding rebindings[], size_t rebindings_nel) {
   return 0;
 }
 
+#else
+// Non-Darwin platforms - provide stub implementations
+#include "simple_rebind.h"
+
+int rebind_symbols(struct rebinding rebindings[], size_t rebindings_nel) {
+    // No-op on non-Darwin platforms
+    (void)rebindings;
+    (void)rebindings_nel;
+    return 0;
+}
+
 #endif // __APPLE__ || __MACH__

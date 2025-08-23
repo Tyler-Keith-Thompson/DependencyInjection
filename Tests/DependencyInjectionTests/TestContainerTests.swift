@@ -7,9 +7,7 @@
 
 import Testing
 import Dispatch
-#if canImport(Darwin)
 import DispatchInterpose
-#endif
 @testable import DependencyInjection
 
 struct TestContainerTests {

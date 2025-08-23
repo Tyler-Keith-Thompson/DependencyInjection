@@ -51,4 +51,12 @@ void swift_async_hooks_install(void) {
     });
 }
 
+#else
+// Non-Darwin platforms - provide stub implementation
+#import "DispatchInterpose.h"
+
+void swift_async_hooks_install(void) {
+    // No-op on non-Darwin platforms
+}
+
 #endif // __APPLE__ || __MACH__

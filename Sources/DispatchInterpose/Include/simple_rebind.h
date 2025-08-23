@@ -1,5 +1,3 @@
-#if defined(__APPLE__) || defined(__MACH__)
-
 // simple_rebind.h
 #pragma once
 #include <stddef.h>
@@ -20,5 +18,3 @@ int rebind_symbols(struct rebinding rebindings[], size_t rebindings_nel);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // __APPLE__ || __MACH__

@@ -17,12 +17,5 @@ func transformBlock(block: @escaping @convention(block) () -> Void) -> @conventi
     }
 }
 
-#if canImport(Darwin)
-// Darwin implementation - DispatchInterpose is available
-#else
-// Non-Darwin implementation - provide stub
-@_cdecl("swift_async_hooks_install")
-func swift_async_hooks_install() {
-    // No-op on non-Darwin platforms
-}
-#endif
+// Note: The swift_async_hooks_install function is now provided by the DispatchInterpose target
+// with appropriate implementations for each platform (Darwin vs non-Darwin)
