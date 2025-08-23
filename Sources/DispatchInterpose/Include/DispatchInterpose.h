@@ -6,7 +6,11 @@
 //
 
 #pragma once
+
+#if defined(__APPLE__) || defined(__MACH__)
 #include <dispatch/dispatch.h>
+#endif
+
 #include <stdbool.h>
 
 #ifdef __cplusplus
