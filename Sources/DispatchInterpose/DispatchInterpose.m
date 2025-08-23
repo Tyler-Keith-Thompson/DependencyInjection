@@ -1,3 +1,5 @@
+#if defined(__APPLE__) || defined(__MACH__)
+
 //
 //  DispatchInterpose.m
 //  DependencyInjection
@@ -48,3 +50,5 @@ void swift_async_hooks_install(void) {
         rebind_symbols(rebindings, sizeof(rebindings) / sizeof(rebindings[0]));
     });
 }
+
+#endif // __APPLE__ || __MACH__

@@ -1,3 +1,5 @@
+#if defined(__APPLE__) || defined(__MACH__)
+
 //
 //  DispatchInterpose.h
 //  DependencyInjection
@@ -18,3 +20,5 @@ void swift_async_hooks_install(void);
 #ifdef __cplusplus
 }
 #endif
+
+#endif // __APPLE__ || __MACH__

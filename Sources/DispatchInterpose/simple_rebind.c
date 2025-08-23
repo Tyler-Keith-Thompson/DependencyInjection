@@ -1,3 +1,5 @@
+#if defined(__APPLE__) || defined(__MACH__)
+
 #include "simple_rebind.h"
 
 #include <dlfcn.h>
@@ -193,3 +195,5 @@ int rebind_symbols(struct rebinding rebindings[], size_t rebindings_nel) {
   }
   return 0;
 }
+
+#endif // __APPLE__ || __MACH__

@@ -52,6 +52,7 @@ let package = Package(
             dependencies: [
                 "DependencyInjection",
                 "DependencyInjectionMacros",
+                "DispatchInterpose",
             ]
         ),
         .testTarget(name: "DependencyInjectionMacrosTests",
