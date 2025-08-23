@@ -6,6 +6,7 @@
 //
 import Foundation
 import ServiceContextModule
+import DispatchInterpose
 import Atomics
 
 final class TestContainer: Container, @unchecked Sendable {
@@ -235,6 +236,7 @@ public enum UnregisteredBehavior {
 public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError,
                                  leakedResolutionBehavior: any LeakedResolutionBehavior = DefaultLeakedResolutionBehavior(),
                                  operation: () throws -> T) rethrows -> T {
+    swift_async_hooks_install()
     var context = ServiceContext.inUse
     let originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
     Container.default.fatalErrorOnResolve = true
@@ -257,6 +259,7 @@ public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
                                  unregisteredBehavior: UnregisteredBehavior = .fatalError,
                                  leakedResolutionBehavior: any LeakedResolutionBehavior = DefaultLeakedResolutionBehavior(),
                                  operation: () async throws -> T) async rethrows -> T {
+    swift_async_hooks_install()
     var context = ServiceContext.inUse
     let originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
     Container.default.fatalErrorOnResolve = true

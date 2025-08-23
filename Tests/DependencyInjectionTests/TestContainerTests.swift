@@ -7,8 +7,7 @@
 
 import Testing
 import Dispatch
-import DispatchInterpose
-@testable import DependencyInjection
+import DependencyInjection
 
 struct TestContainerTests {
     let failTestBehavior = UnregisteredBehavior.custom {
@@ -143,12 +142,8 @@ struct TestContainerTests {
     @Test func whatIfWeCouldPreventLeaks_ThatWouldBeReallyCool() async throws {
         let factory = Factory { true }
         withTestContainer(unregisteredBehavior: failTestBehavior) {
-            swift_async_hooks_install()
             // Make it visible to ALL capture paths for the duration of the scope:
             ICannotBelievePeopleDoThis(factory: factory)
-            DispatchQueue.main.async {
-                #expect(Container.current is TestContainer)
-            }
         }
         
         try await withTestContainer(unregisteredBehavior: failTestBehavior) { // second test

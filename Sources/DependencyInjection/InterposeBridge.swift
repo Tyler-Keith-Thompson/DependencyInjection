@@ -8,7 +8,7 @@
 import Foundation
 
 #if canImport(Darwin)
-@_cdecl("transformBlock")
+@_cdecl("di_transformBlock")
 func transformBlock(block: @escaping @convention(block) () -> Void) -> @convention(block) () -> Void {
     let container = Container.current
     return {

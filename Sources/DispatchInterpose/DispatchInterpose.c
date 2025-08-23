@@ -14,7 +14,7 @@
 //
 
 // Swift shim that wraps the block (only available on Darwin)
-extern void *transformBlock(void *block);
+extern void *di_transformBlock(void *block);
 
 // Pointer to original function
 static void (*orig_async)(void *group, void *qos, void *flags, void *block);
@@ -22,12 +22,12 @@ static void (*orig_async_after)(void *deadline, void *qos, void *flags, void *bl
 
 // Our replacement
 static void new_async(void *group, void *qos, void *flags, void *block) {
-    void *wrapped = transformBlock(block);
+    void *wrapped = di_transformBlock(block);
     orig_async(group, qos, flags, wrapped);
 }
 
 static void new_async_after(void *deadline, void *qos, void *flags, void *block) {
-    void *wrapped = transformBlock(block);
+    void *wrapped = di_transformBlock(block);
     orig_async_after(deadline, qos, flags, wrapped);
 }
 
