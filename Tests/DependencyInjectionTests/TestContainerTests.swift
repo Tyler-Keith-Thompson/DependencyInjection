@@ -141,12 +141,14 @@ struct TestContainerTests {
     #if canImport(Darwin)
     @Test func whatIfWeCouldPreventLeaks_ThatWouldBeReallyCool() async throws {
         let factory = Factory { true }
-        withTestContainer(unregisteredBehavior: failTestBehavior) {
+        withTestContainer(unregisteredBehavior: failTestBehavior,
+                          leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
             // Make it visible to ALL capture paths for the duration of the scope:
             ICannotBelievePeopleDoThis(factory: factory)
         }
         
-        try await withTestContainer(unregisteredBehavior: failTestBehavior) { // second test
+        try await withTestContainer(unregisteredBehavior: failTestBehavior,
+                                    leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) { // second test
             try await Task {
                 try await Task.sleep(nanoseconds: 10000000)
             }.value // wait for it

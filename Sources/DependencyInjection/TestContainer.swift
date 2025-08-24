@@ -165,7 +165,7 @@ enum ResolutionError: Error {
     case leakedResolution
 }
 
-public struct DefaultLeakedResolutionBehavior: LeakedResolutionBehavior {
+public struct BestEffortLeakedResolutionBehavior: LeakedResolutionBehavior {
     public init() { }
     
     public func onLeak<D>(factory: SyncFactory<D>) -> LeakedResolutionStrategy<D> {
@@ -173,7 +173,7 @@ public struct DefaultLeakedResolutionBehavior: LeakedResolutionBehavior {
         // crashy crashy
         // First step, let's cancel the current task (if any, they might've used GCD)
         // Theoretically this should stop many possible bad things happening (like network requests)
-        withUnsafeCurrentTask { $0?.cancel() }        
+        withUnsafeCurrentTask { $0?.cancel() }
 
         // if there is one, we can use a supplied test value
         
@@ -209,13 +209,53 @@ public struct DefaultLeakedResolutionBehavior: LeakedResolutionBehavior {
     }
 }
 
-//public enum LeakedResolutionBehavior {
-//    case readFromEnvironment // default
-//    case bestEffortResolveSomething
-//    case crash
-//    case crashIfNoTestValue
-//    case custom(@Sendable (String) -> Void)
-//}
+public struct CrashLeakedResolutionBehavior: LeakedResolutionBehavior {
+    public func onLeak<D>(factory: SyncFactory<D>) -> LeakedResolutionStrategy<D> {
+        crash(message: "Factory: \(factory) leaked a resolution. This means that asynchronous code was executed from within `withTestContainer` but was never waited on.")
+    }
+    
+    public func onLeak<D>(factory: SyncThrowingFactory<D>) throws -> LeakedResolutionStrategy<D> {
+        crash(message: "Factory: \(factory) leaked a resolution. This means that asynchronous code was executed from within `withTestContainer` but was never waited on.")
+    }
+    
+    public func onLeak<D>(factory: AsyncFactory<D>) async -> LeakedResolutionStrategy<D> {
+        crash(message: "Factory: \(factory) leaked a resolution. This means that asynchronous code was executed from within `withTestContainer` but was never waited on.")
+    }
+    
+    public func onLeak<D>(factory: AsyncThrowingFactory<D>) async throws -> LeakedResolutionStrategy<D> {
+        crash(message: "Factory: \(factory) leaked a resolution. This means that asynchronous code was executed from within `withTestContainer` but was never waited on.")
+    }
+}
+
+public struct DefaultLeakedResolutionBehavior: LeakedResolutionBehavior {
+    let chosenBehavior: any LeakedResolutionBehavior
+    public init() {
+        chosenBehavior = ProcessInfo.processInfo.environment["DI_BEST_EFFORT_LEAK_RESOLUTION"] == "true" ? BestEffortLeakedResolutionBehavior() : CrashLeakedResolutionBehavior()
+    }
+    
+    public func onLeak<D>(factory: SyncFactory<D>) -> LeakedResolutionStrategy<D> {
+        chosenBehavior.onLeak(factory: factory)
+    }
+    
+    public func onLeak<D>(factory: SyncThrowingFactory<D>) throws -> LeakedResolutionStrategy<D> {
+        try chosenBehavior.onLeak(factory: factory)
+    }
+    
+    public func onLeak<D>(factory: AsyncFactory<D>) async -> LeakedResolutionStrategy<D> {
+        await chosenBehavior.onLeak(factory: factory)
+    }
+    
+    public func onLeak<D>(factory: AsyncThrowingFactory<D>) async throws -> LeakedResolutionStrategy<D> {
+        try await chosenBehavior.onLeak(factory: factory)
+    }
+}
+
+func crash(message: String) -> Never {
+    #if _runtime(_ObjC)
+        NSException(name: .internalInconsistencyException, reason: message, userInfo: nil).raise()
+    #endif
+    Swift.fatalError(message)
+}
 
 public enum UnregisteredBehavior {
     case fatalError
@@ -225,7 +265,7 @@ public enum UnregisteredBehavior {
     func trigger<T, D>(factory: T, dependency: D.Type) {
         switch self {
         case .fatalError:
-            Swift.fatalError("Dependency: \(dependency) on factory: \(factory) not registered!")
+            crash(message: "Dependency: \(dependency) on factory: \(factory) not registered!")
         case .custom(let action):
             action("\(factory)")
         }
