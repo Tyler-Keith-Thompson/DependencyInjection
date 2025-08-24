@@ -6,6 +6,7 @@
 //
 
 import Testing
+import Dispatch
 import DependencyInjection
 
 struct TestContainerTests {
@@ -124,4 +125,34 @@ struct TestContainerTests {
             #expect(resolved === val)
         }
     }
+    
+    class ICannotBelievePeopleDoThis {
+        @discardableResult init(factory: SyncFactory<Bool>) {
+            Task {
+                try await Task.sleep(nanoseconds: 100000)
+                #expect(factory() == true)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(1)) {
+                #expect(factory() == true)
+            }
+        }
+    }
+    
+    #if canImport(Darwin)
+    @Test func whatIfWeCouldPreventLeaks_ThatWouldBeReallyCool() async throws {
+        let factory = Factory { true }
+        withTestContainer(unregisteredBehavior: failTestBehavior,
+                          leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+            // Make it visible to ALL capture paths for the duration of the scope:
+            ICannotBelievePeopleDoThis(factory: factory)
+        }
+        
+        try await withTestContainer(unregisteredBehavior: failTestBehavior,
+                                    leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) { // second test
+            try await Task {
+                try await Task.sleep(nanoseconds: 10000000)
+            }.value // wait for it
+        }
+    }
+    #endif
 }
