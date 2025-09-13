@@ -6,6 +6,7 @@
 //
 
 import Testing
+import Foundation
 import DependencyInjection
 
 struct TestContainerTests {
@@ -13,6 +14,96 @@ struct TestContainerTests {
         Issue.record("Dependency for factory: \($0) not registered!")
     }
     
+    @Test func withTestContainerOverridesDoNotLeakAcrossTests_whenUsingCachedScope() async throws {
+        class Super { }
+        enum Globals {
+            static let service = Factory(scope: .cached) { Super() }
+        }
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let testValue = Super()
+            Globals.service.register { testValue }
+            #expect(Globals.service() === testValue)
+        }
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let another = Super()
+            Globals.service.register { another }
+            #expect(Globals.service() === another)
+        }
+    }
+
+    @Test func staticCachedFactoryWithTwoWithTestContainerBlocks_mirrorsRealProject() async throws {
+        class MyDep { }
+        enum Globals {
+            static let cachedDep = Factory(scope: .cached) { MyDep() }
+        }
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let testValue = MyDep()
+            Globals.cachedDep.register { testValue }
+            #expect(Globals.cachedDep() === testValue)
+        }
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let testValue = MyDep()
+            Globals.cachedDep.register { testValue }
+            #expect(Globals.cachedDep() === testValue)
+        }
+    }
+
+    @Test func cachedFactoryPrimedBeforeWithTestContainer_isClearedOnRegister() async throws {
+        class MyDep { }
+        enum Globals {
+            static let cachedDep = Factory(scope: .cached) { MyDep() }
+        }
+
+        // Prime cache outside test container
+        _ = Globals.cachedDep()
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let testValue = MyDep()
+            Globals.cachedDep.register { testValue }
+            #expect(Globals.cachedDep() === testValue)
+        }
+    }
+
+    @Test func cachedScopeInterferenceAcrossConcurrentWithTestContainerBlocks() async throws {
+        class MyDep { }
+        enum Globals {
+            static let cachedDep = Factory(scope: .cached) { MyDep() }
+        }
+
+        let aReady = DispatchSemaphore(value: 0)
+        let bDone = DispatchSemaphore(value: 0)
+
+        // This should pass with per-container cached scope, using nested containers to avoid global fatal flag
+        do {
+            async let a: Void = withNestedContainer {
+                let depA = MyDep()
+                Globals.cachedDep.register { depA }
+                aReady.signal()
+                let first = Globals.cachedDep()
+                #expect(first === depA)
+                // Wait for B to register and resolve, which clears and overwrites the global cache
+                _ = bDone.wait(timeout: .now() + 1)
+                // This can fail with StrongCache because cache is shared across containers
+                let second = Globals.cachedDep()
+                #expect(second === depA)
+            }
+
+            async let b: Void = withNestedContainer {
+                _ = aReady.wait(timeout: .now() + 1)
+                let depB = MyDep()
+                Globals.cachedDep.register { depB }
+                let resolved = Globals.cachedDep()
+                #expect(resolved === depB)
+                bDone.signal()
+            }
+
+            _ = await (a, b)
+        }
+    }
     @Test func synchronousFactoryCanResolveAUniqueType() async throws {
         class Super { }
         let factory = Factory { Super() }
