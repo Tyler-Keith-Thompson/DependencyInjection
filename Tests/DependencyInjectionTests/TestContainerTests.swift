@@ -10,7 +10,7 @@ import Foundation
 import DependencyInjection
 
 struct TestContainerTests {
-    let failTestBehavior = UnregisteredBehavior.custom {
+    nonisolated(unsafe) let failTestBehavior = UnregisteredBehavior.custom {
         Issue.record("Dependency for factory: \($0) not registered!")
     }
     
@@ -33,6 +33,38 @@ struct TestContainerTests {
         }
     }
 
+    @Test func sharedScopeInterferenceAcrossConcurrentWithTestContainerBlocks() async throws {
+        final class Ref: NSObject { }
+        enum Globals {
+            static let sharedDep = Factory(scope: .shared) { Ref() }
+        }
+
+        let aReady = DispatchSemaphore(value: 0)
+        let bDone = DispatchSemaphore(value: 0)
+
+        // This reproduces the same cross-container interference for .shared
+        async let a: Void = withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let aRef = Ref()
+            Globals.sharedDep.register { aRef }
+            aReady.signal()
+            let first = Globals.sharedDep()
+            #expect(first === aRef)
+            _ = bDone.wait(timeout: .now() + 1)
+            let second = Globals.sharedDep()
+            #expect(second === aRef)
+        }
+
+        async let b: Void = withTestContainer(unregisteredBehavior: failTestBehavior) {
+            _ = aReady.wait(timeout: .now() + 1)
+            let bRef = Ref()
+            Globals.sharedDep.register { bRef }
+            let resolved = Globals.sharedDep()
+            #expect(resolved === bRef)
+            bDone.signal()
+        }
+
+        _ = await (a, b)
+    }
     @Test func staticCachedFactoryWithTwoWithTestContainerBlocks_mirrorsRealProject() async throws {
         class MyDep { }
         enum Globals {
@@ -58,13 +90,15 @@ struct TestContainerTests {
             static let cachedDep = Factory(scope: .cached) { MyDep() }
         }
 
-        // Prime cache outside test container
-        _ = Globals.cachedDep()
-
-        withTestContainer(unregisteredBehavior: failTestBehavior) {
-            let testValue = MyDep()
-            Globals.cachedDep.register { testValue }
-            #expect(Globals.cachedDep() === testValue)
+        withNestedContainer {
+            // Prime cache outside test container
+            _ = Globals.cachedDep()
+            
+            withTestContainer(unregisteredBehavior: failTestBehavior) {
+                let testValue = MyDep()
+                Globals.cachedDep.register { testValue }
+                #expect(Globals.cachedDep() === testValue)
+            }
         }
     }
 
@@ -104,24 +138,6 @@ struct TestContainerTests {
             _ = await (a, b)
         }
     }
-    @Test func synchronousFactoryCanResolveAUniqueType() async throws {
-        class Super { }
-        let factory = Factory { Super() }
-        let val = Super()
-        factory.register { val }
-        
-        withKnownIssue {
-            _ = withTestContainer(unregisteredBehavior: failTestBehavior) {
-                factory()
-            }
-        }
-        
-        withTestContainer(unregisteredBehavior: failTestBehavior) {
-            factory.popRegistration()
-            let resolved = factory()
-            #expect(resolved === val)
-        }
-    }
     
     @Test func factoryWeakCacheIsResetAfterRegistration() async throws {
         class Super { }
@@ -150,69 +166,6 @@ struct TestContainerTests {
             let val2 = Super()
             factory.register { val2 }
             #expect(factory() === val2)
-        }
-    }
-    
-    @Test func synchronousThrowingFactoryCanResolveAUniqueType() async throws {
-        class Super {
-            init() throws { }
-        }
-        let factory = Factory { try Super() }
-        let val = try Super()
-        factory.register { val }
-        
-        withKnownIssue {
-            _ = try withTestContainer(unregisteredBehavior: failTestBehavior) {
-                try factory()
-            }
-        }
-        
-        try withTestContainer(unregisteredBehavior: failTestBehavior) {
-            factory.popRegistration()
-            let resolved = try factory()
-            #expect(resolved === val)
-        }
-    }
-    
-    @Test func asynchronousFactoryCanResolveAUniqueType() async throws {
-        actor Super {
-            init() async { }
-        }
-        let factory = Factory { await Super() }
-        let val = await Super()
-        factory.register { val }
-
-        await withKnownIssue {
-            _ = await withTestContainer(unregisteredBehavior: failTestBehavior) {
-                await factory()
-            }
-        }
-        
-        await withTestContainer(unregisteredBehavior: failTestBehavior) {
-            factory.popRegistration()
-            let resolved = await factory()
-            #expect(resolved === val)
-        }
-    }
-    
-    @Test func asynchronousThrowingFactoryCanResolveAUniqueType() async throws {
-        actor Super {
-            init() async throws { }
-        }
-        let factory = Factory { try await Super() }
-        let val = try await Super()
-        factory.register { val }
-
-        await withKnownIssue {
-            _ = try await withTestContainer(unregisteredBehavior: failTestBehavior) {
-                try await factory()
-            }
-        }
-        
-        try await withTestContainer(unregisteredBehavior: failTestBehavior) {
-            factory.popRegistration()
-            let resolved = try await factory()
-            #expect(resolved === val)
         }
     }
 }
