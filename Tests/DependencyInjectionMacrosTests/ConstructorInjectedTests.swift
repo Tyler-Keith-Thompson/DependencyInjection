@@ -43,7 +43,7 @@ struct ConstructorInjectedTests {
                     }
                 }
             
-                private  let _dependency = ConstructorInjectedResolver(Container.dependency)
+                private  let _dependency = ConstructorInjectedResolver(Container.dependency, file: #file, line: #line, function: #function)
             
                 private var $dependency: SyncFactory<Dependency> {
                     _dependency.projectedValue
@@ -85,7 +85,7 @@ struct ConstructorInjectedTests {
                     }
                 }
             
-                private  let _dependency = ConstructorInjectedResolver(Container.dependency)
+                private  let _dependency = ConstructorInjectedResolver(Container.dependency, file: #file, line: #line, function: #function)
             
                 private var $dependency: SyncThrowingFactory<Dependency> {
                     _dependency.projectedValue
@@ -127,7 +127,7 @@ struct ConstructorInjectedTests {
                     }
                 }
             
-                private  let _dependency = ConstructorInjectedResolver(Container.dependency)
+                private  let _dependency = ConstructorInjectedResolver(Container.dependency, file: #file, line: #line, function: #function)
             
                 private var $dependency: AsyncFactory<Dependency> {
                     _dependency.projectedValue
@@ -169,7 +169,7 @@ struct ConstructorInjectedTests {
                     }
                 }
             
-                private  let _dependency = ConstructorInjectedResolver(Container.dependency)
+                private  let _dependency = ConstructorInjectedResolver(Container.dependency, file: #file, line: #line, function: #function)
             
                 private var $dependency: AsyncThrowingFactory<Dependency> {
                     _dependency.projectedValue
@@ -211,7 +211,7 @@ struct ConstructorInjectedTests {
                     }
                 }
             
-                private static let _dependency = ConstructorInjectedResolver(Container.dependency)
+                private static let _dependency = ConstructorInjectedResolver(Container.dependency, file: #file, line: #line, function: #function)
             
                 private static var $dependency: SyncFactory<Dependency> {
                     _dependency.projectedValue
@@ -253,7 +253,7 @@ struct ConstructorInjectedTests {
                     }
                 }
 
-                private  let _dependency = InjectedResolver(Container.dependency)
+                private  let _dependency = InjectedResolver(Container.dependency, file: #file, line: #line, function: #function)
 
                 var $dependency: SyncFactory<Dependency> {
                         _dependency.projectedValue
@@ -295,7 +295,7 @@ struct ConstructorInjectedTests {
                     }
                 }
 
-                private  let _dependency = InjectedResolver(Container.dependency)
+                private  let _dependency = InjectedResolver(Container.dependency, file: #file, line: #line, function: #function)
 
                 public var $dependency: SyncFactory<Dependency> {
                     _dependency.projectedValue

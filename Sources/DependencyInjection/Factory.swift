@@ -47,11 +47,11 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
         return self
     }
 
-    public func callAsFunction() -> Dependency {
+    public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) -> Dependency {
         if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
             return resolver()
         } else {
-            return Container.current.resolve(factory: self)
+            return Container.current.resolve(factory: self, file: file, line: line, function: function)
         }
     }
 
@@ -83,11 +83,11 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
         return self
     }
 
-    public func callAsFunction() throws -> Dependency {
+    public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) throws -> Dependency {
         if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
             return try resolver()
         } else {
-            return try Container.current.resolve(factory: self)
+            return try Container.current.resolve(factory: self, file: file, line: line, function: function)
         }
     }
     
@@ -118,11 +118,11 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
         return self
     }
 
-    public func callAsFunction() async -> Dependency {
+    public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) async -> Dependency {
         if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
             return await resolver()
         } else {
-            return await Container.current.resolve(factory: self)
+            return await Container.current.resolve(factory: self, file: file, line: line, function: function)
         }
     }
     
@@ -154,11 +154,11 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
         return self
     }
 
-    public func callAsFunction() async throws -> Dependency {
+    public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) async throws -> Dependency {
         if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
             return try await resolver()
         } else {
-            return try await Container.current.resolve(factory: self)
+            return try await Container.current.resolve(factory: self, file: file, line: line, function: function)
         }
     }
     

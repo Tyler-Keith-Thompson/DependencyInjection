@@ -36,36 +36,36 @@ public class Container: @unchecked Sendable {
         return _storage(for: factory)
     }
     
-    func resolve<D>(factory: SyncFactory<D>) -> D {
+    func resolve<D>(factory: SyncFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task.")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
         }
         let currentRegisteredResolver = storage(for: factory).syncRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.syncRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
         return factory.scope.resolve(resolver: currentResolver)
     }
     
-    func resolve<D>(factory: SyncThrowingFactory<D>) throws -> D {
+    func resolve<D>(factory: SyncThrowingFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) throws -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task.")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
         }
         let currentRegisteredResolver = storage(for: factory).syncThrowingRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.syncThrowingRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
         return try factory.scope.resolve(resolver: currentResolver)
     }
 
-    func resolve<D>(factory: AsyncFactory<D>) async -> D {
+    func resolve<D>(factory: AsyncFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) async -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task.")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
         }
         let currentRegisteredResolver = storage(for: factory).asyncRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.asyncRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
         return await factory.scope.resolve(resolver: currentResolver)
     }
 
-    func resolve<D>(factory: AsyncThrowingFactory<D>) async throws -> D {
+    func resolve<D>(factory: AsyncThrowingFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) async throws -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task.")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
         }
         let currentRegisteredResolver = storage(for: factory).asyncThrowingRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.asyncThrowingRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver

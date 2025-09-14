@@ -39,7 +39,7 @@ extension Macro {
 
         let modifierPrefix = modifiersExcludingAccess.joined(separator: " ")
         return [
-            DeclSyntax(stringLiteral: "private \(modifierPrefix) let \(privateName) = \(resolverType)(\(factoryExpr))"),
+            DeclSyntax(stringLiteral: "private \(modifierPrefix) let \(privateName) = \(resolverType)(\(factoryExpr), file: #file, line: #line, function: #function)"),
             DeclSyntax(stringLiteral: """
             \(modifiers.joined(separator: " ")) var \(projectedName): \(projectedType) {
                 \(privateName).projectedValue
