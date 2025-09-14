@@ -12,10 +12,16 @@ final class TestContainer: Container, @unchecked Sendable {
     let unregisteredBehavior: UnregisteredBehavior
     let _parent: Container
     private var storage = [AnyHashable: StorageBase]()
+    let testContainerFile: String
+    let testContainerLine: UInt
+    let testContainerFunction: String
     
-    init(parent: Container, unregisteredBehavior: UnregisteredBehavior) {
+    init(parent: Container, unregisteredBehavior: UnregisteredBehavior, file: String = #file, line: UInt = #line, function: String = #function) {
         self.unregisteredBehavior = unregisteredBehavior
         self._parent = parent
+        self.testContainerFile = file
+        self.testContainerLine = line
+        self.testContainerFunction = function
         super.init(parent: parent)
     }
     
@@ -25,7 +31,7 @@ final class TestContainer: Container, @unchecked Sendable {
         }
         switch unregisteredBehavior {
         case .fatalError:
-            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function)")
+            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function). Test container created at \(testContainerFile):\(testContainerLine) in \(testContainerFunction)")
         case .custom(let action):
             action("\(factory)")
         }
@@ -38,7 +44,7 @@ final class TestContainer: Container, @unchecked Sendable {
         }
         switch unregisteredBehavior {
         case .fatalError:
-            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function)")
+            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function). Test container created at \(testContainerFile):\(testContainerLine) in \(testContainerFunction)")
         case .custom(let action):
             action("\(factory)")
         }
@@ -51,7 +57,7 @@ final class TestContainer: Container, @unchecked Sendable {
         }
         switch unregisteredBehavior {
         case .fatalError:
-            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function)")
+            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function). Test container created at \(testContainerFile):\(testContainerLine) in \(testContainerFunction)")
         case .custom(let action):
             action("\(factory)")
         }
@@ -64,7 +70,7 @@ final class TestContainer: Container, @unchecked Sendable {
         }
         switch unregisteredBehavior {
         case .fatalError:
-            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function)")
+            fatalError("Dependency: \(D.self) on factory: \(factory) not registered! Called from \(file):\(line) in \(function). Test container created at \(testContainerFile):\(testContainerLine) in \(testContainerFunction)")
         case .custom(let action):
             action("\(factory)")
         }
@@ -108,20 +114,20 @@ public enum UnregisteredBehavior {
     case custom(@Sendable (String) -> Void)
 }
 
-public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () throws -> T) rethrows -> T {
+public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError, file: String = #file, line: UInt = #line, function: String = #function, operation: () throws -> T) rethrows -> T {
     var context = ServiceContext.inUse
     let previous = Container.default.fatalErrorOnResolve
     Container.default.fatalErrorOnResolve = true
     defer { Container.default.fatalErrorOnResolve = previous }
-    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
+    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior, file: file, line: line, function: function)
     return try ServiceContext.withValue(context, operation: operation)
 }
 
-public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation, unregisteredBehavior: UnregisteredBehavior = .fatalError, operation: () async throws -> T) async rethrows -> T {
+public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation, unregisteredBehavior: UnregisteredBehavior = .fatalError, file: String = #file, line: UInt = #line, function: String = #function, operation: () async throws -> T) async rethrows -> T {
     var context = ServiceContext.inUse
     let previous = Container.default.fatalErrorOnResolve
     Container.default.fatalErrorOnResolve = true
     defer { Container.default.fatalErrorOnResolve = previous }
-    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior)
+    context.container = TestContainer(parent: Container(parent: Container.current), unregisteredBehavior: unregisteredBehavior, file: file, line: line, function: function)
     return try await ServiceContext.withValue(context, operation: operation)
 }
