@@ -225,7 +225,8 @@ public struct BestEffortLeakedResolutionBehavior: LeakedResolutionBehavior {
     
     public func onLeak<D>(factory: AsyncFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) async -> LeakedResolutionStrategy<D> {
         print("⚠️ DEPENDENCY LEAK DETECTED: Factory \(factory) leaked a resolution. This means that asynchronous code was executed from within `withTestContainer` but was never waited on. Test container was created at \(testContainerFile):\(testContainerLine) in \(testContainerFunction)")
-        // we know we're executing in a task, let's just suspend indefinitely
+        // cancel then suspend indefinitely to prevent side effects
+        withUnsafeCurrentTask { $0?.cancel() }
         await withUnsafeContinuation { (_: UnsafeContinuation<Never, Never>) in
             // never resume
         }
