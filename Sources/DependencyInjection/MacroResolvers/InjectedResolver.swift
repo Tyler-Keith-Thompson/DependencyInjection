@@ -8,23 +8,23 @@
 public struct InjectedResolver<Value, Factory: Sendable>: Sendable {
     let factory: Factory
     let getter: @Sendable () -> Value
-    public init(_ factory: Factory) where Factory == SyncFactory<Value> {
-        getter = { factory() }
+    public init(_ factory: Factory, file: String = #file, line: UInt = #line, function: String = #function) where Factory == SyncFactory<Value> {
+        getter = { factory(file: file, line: line, function: function) }
         self.factory = factory
     }
     
-    public init<D>(_ factory: Factory) where Factory == SyncThrowingFactory<D>, Value == Result<D, any Error> {
-        getter = { Result { try factory() } }
+    public init<D>(_ factory: Factory, file: String = #file, line: UInt = #line, function: String = #function) where Factory == SyncThrowingFactory<D>, Value == Result<D, any Error> {
+        getter = { Result { try factory(file: file, line: line, function: function) } }
         self.factory = factory
     }
     
-    public init<D>(_ factory: Factory) where Factory == AsyncFactory<D>, Value == Task<D, Never> {
-        getter = { Task { await factory() } }
+    public init<D>(_ factory: Factory, file: String = #file, line: UInt = #line, function: String = #function) where Factory == AsyncFactory<D>, Value == Task<D, Never> {
+        getter = { Task { await factory(file: file, line: line, function: function) } }
         self.factory = factory
     }
     
-    public init<D>(_ factory: Factory) where Factory == AsyncThrowingFactory<D>, Value == Task<D, any Error> {
-        getter = { Task { try await factory() } }
+    public init<D>(_ factory: Factory, file: String = #file, line: UInt = #line, function: String = #function) where Factory == AsyncThrowingFactory<D>, Value == Task<D, any Error> {
+        getter = { Task { try await factory(file: file, line: line, function: function) } }
         self.factory = factory
     }
     

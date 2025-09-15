@@ -34,61 +34,128 @@ protocol _Cache {
 
 @available(iOS 13.0, macOS 10.15, tvOS 14.0, watchOS 7.0, *)
 final class StrongCache: Cache, _Cache, @unchecked Sendable {
-    private var lock = NSRecursiveLock()
-    var registeredValue: Any?
-    var hasValue: Bool = false
+    private final class Entry {
+        var registeredValue: Any?
+        var hasValue: Bool = false
+    }
 
-    init() { }
+    private var lock = NSRecursiveLock()
+    private var storage = [ObjectIdentifier: Entry]()
+
+    private func entry(for container: Container) -> Entry {
+        let id = ObjectIdentifier(container)
+        if let e = storage[id] { return e }
+        let e = Entry()
+        storage[id] = e
+        return e
+    }
+
+    private func currentContainer() -> Container { Container.current }
+
+    private func searchEntryForRead() -> Entry? {
+        var container: Container? = currentContainer()
+        // Allow parent fallback except when running under a TestContainer
+        let allowParents = !(container is TestContainer)
+        while let c = container {
+            let id = ObjectIdentifier(c)
+            if let e = storage[id], e.hasValue { return e }
+            if allowParents {
+                container = c.parent
+            } else {
+                break
+            }
+        }
+        return nil
+    }
+
+    var hasValue: Bool {
+        defer { lock.unlock() }
+        lock.lock()
+        return searchEntryForRead() != nil
+    }
 
     func callAsFunction() -> Any? {
         defer { lock.unlock() }
         lock.lock()
-        return registeredValue
+        let e = searchEntryForRead() ?? entry(for: currentContainer())
+        return e.registeredValue
     }
 
     func register(_ dependency: Any) {
         defer { lock.unlock() }
         lock.lock()
-        registeredValue = dependency
-        hasValue = true
+        let e = entry(for: currentContainer())
+        e.registeredValue = dependency
+        e.hasValue = true
     }
 
     public func clear() {
         defer { lock.unlock() }
         lock.lock()
-        registeredValue = nil
-        hasValue = false
+        let e = entry(for: currentContainer())
+        e.registeredValue = nil
+        e.hasValue = false
     }
 }
 
 @available(iOS 13.0, macOS 10.15, tvOS 14.0, watchOS 7.0, *)
 final class WeakCache: Cache, _Cache, @unchecked Sendable {
+    private final class Entry {
+        weak var value: AnyObject?
+    }
+
     private var lock = NSRecursiveLock()
-    weak var registeredValue: AnyObject?
+    private var storage = [ObjectIdentifier: Entry]()
+
+    private func entry(for container: Container) -> Entry {
+        let id = ObjectIdentifier(container)
+        if let e = storage[id] { return e }
+        let e = Entry()
+        storage[id] = e
+        return e
+    }
+
+    private func currentContainer() -> Container { Container.current }
+
+    private func searchEntryForRead() -> Entry? {
+        var container: Container? = currentContainer()
+        let allowParents = !(container is TestContainer)
+        while let c = container {
+            let id = ObjectIdentifier(c)
+            if let e = storage[id], e.value != nil { return e }
+            if allowParents {
+                container = c.parent
+            } else {
+                break
+            }
+        }
+        return nil
+    }
 
     var hasValue: Bool {
         defer { lock.unlock() }
         lock.lock()
-        return registeredValue != nil
+        return searchEntryForRead()?.value != nil
     }
-
-    init() { }
 
     func callAsFunction() -> Any? {
         defer { lock.unlock() }
         lock.lock()
-        return registeredValue
+        let e = searchEntryForRead() ?? entry(for: currentContainer())
+        return e.value
     }
 
     func register(_ dependency: Any) {
         defer { lock.unlock() }
         lock.lock()
-        registeredValue = dependency as AnyObject
+        let e = entry(for: currentContainer())
+        e.value = dependency as AnyObject
     }
 
     public func clear() {
         defer { lock.unlock() }
         lock.lock()
-        registeredValue = nil
+        let e = entry(for: currentContainer())
+        e.value = nil
     }
 }
