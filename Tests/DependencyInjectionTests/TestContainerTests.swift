@@ -198,5 +198,67 @@ struct TestContainerTests {
             }.value // wait for it
         }
     }
+    
+    @Test func withNestedContainer_InsideTestContainer_DoesNotCrash() async throws {
+        let factory = Factory { "test-value" }
+        
+        withTestContainer(unregisteredBehavior: failTestBehavior,
+                          leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+            // This used to crash because withNestedContainer created a regular Container 
+            // that would hit fatalErrorOnResolve instead of using leak detection
+            withNestedContainer {
+                // Register the factory in THIS container - TestContainers should be isolated
+                factory.register { "registered-value" }
+                let result = factory()
+                #expect(result == "registered-value")
+            }
+        }
+    }
+    
+    @Test func withNestedContainer_InsideTestContainer_PreservesLeakDetection() async throws {
+        let factory = Factory { true }
+        
+        await withTestContainer(unregisteredBehavior: failTestBehavior,
+                               leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+            // This should trigger leak detection through the nested container
+            await withNestedContainer {
+                // Register the factory in THIS nested container - TestContainers are isolated
+                factory.register { true }
+                // This will cause a leak that should be handled gracefully
+                ICannotBelievePeopleDoThis(factory: factory)
+            }
+        }
+    }
+
+    @Test func withTestContainer_InsideNestedContainer_DoesNotCrash() async throws {
+        let factory = Factory { "test-value" }
+        
+        withNestedContainer {
+            withTestContainer(unregisteredBehavior: failTestBehavior,
+                          leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+                // This used to crash because withNestedContainer created a regular Container 
+                // that would hit fatalErrorOnResolve instead of using leak detection
+                // Register the factory in THIS container - TestContainers should be isolated
+                factory.register { "registered-value" }
+                let result = factory()
+                #expect(result == "registered-value")
+            }
+        }
+    }
+    
+    @Test func withTestContainer_InsideNestedContainer_PreservesLeakDetection() async throws {
+        let factory = Factory { true }
+        
+        await withNestedContainer {
+            await withTestContainer(unregisteredBehavior: failTestBehavior,
+                               leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+                // This should trigger leak detection through the nested container
+                // Register the factory in THIS nested container - TestContainers are isolated
+                factory.register { true }
+                // This will cause a leak that should be handled gracefully
+                ICannotBelievePeopleDoThis(factory: factory)
+            }
+        }
+    }
     #endif
 }
