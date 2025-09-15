@@ -9,6 +9,11 @@ import ServiceContextModule
 import DispatchInterpose
 import Atomics
 
+// File-level atomics for concurrent withTestContainer race condition protection
+private let _fatalErrorOnResolveRefCount = ManagedAtomic<Int>(0)
+private nonisolated(unsafe) var _originalFatalErrorOnResolveValue: Bool = false
+private let _fatalErrorOnResolveValueSaved = ManagedAtomic<Bool>(false)
+
 final class TestContainer: Container, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     let unregisteredBehavior: UnregisteredBehavior
@@ -311,11 +316,25 @@ public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .f
                                  operation: () throws -> T) rethrows -> T {
     swift_async_hooks_install()
     var context = ServiceContext.inUse
-    let originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
-    Container.default.fatalErrorOnResolve = true
-    defer {
-        Container.default.fatalErrorOnResolve = originalFatalErrorOnResolveValue
+    
+    // Atomic reference counting solution to fix race condition
+    let refCount = _fatalErrorOnResolveRefCount.wrappingIncrementThenLoad(ordering: .sequentiallyConsistent)
+    if refCount == 1 {
+        // First entrant - capture and store the original value
+        _originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
+        _fatalErrorOnResolveValueSaved.store(true, ordering: .sequentiallyConsistent)
+        Container.default.fatalErrorOnResolve = true
     }
+    
+    defer {
+        let refCount = _fatalErrorOnResolveRefCount.wrappingDecrementThenLoad(ordering: .sequentiallyConsistent)
+        if refCount == 0 {
+            // Last exit - restore the original value and clear saved flag
+            Container.default.fatalErrorOnResolve = _originalFatalErrorOnResolveValue
+            _fatalErrorOnResolveValueSaved.store(false, ordering: .sequentiallyConsistent)
+        }
+    }
+    
     let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
                                       leakedResolutionBehavior: leakedResolutionBehavior,
@@ -336,11 +355,25 @@ public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
                                  operation: () async throws -> T) async rethrows -> T {
     swift_async_hooks_install()
     var context = ServiceContext.inUse
-    let originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
-    Container.default.fatalErrorOnResolve = true
-    defer {
-        Container.default.fatalErrorOnResolve = originalFatalErrorOnResolveValue
+    
+    // Atomic reference counting solution to fix race condition
+    let refCount = _fatalErrorOnResolveRefCount.wrappingIncrementThenLoad(ordering: .sequentiallyConsistent)
+    if refCount == 1 {
+        // First entrant - capture and store the original value
+        _originalFatalErrorOnResolveValue = Container.default.fatalErrorOnResolve
+        _fatalErrorOnResolveValueSaved.store(true, ordering: .sequentiallyConsistent)
+        Container.default.fatalErrorOnResolve = true
     }
+    
+    defer {
+        let refCount = _fatalErrorOnResolveRefCount.wrappingDecrementThenLoad(ordering: .sequentiallyConsistent)
+        if refCount == 0 {
+            // Last exit - restore the original value and clear saved flag
+            Container.default.fatalErrorOnResolve = _originalFatalErrorOnResolveValue
+            _fatalErrorOnResolveValueSaved.store(false, ordering: .sequentiallyConsistent)
+        }
+    }
+    
     let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
                                       leakedResolutionBehavior: leakedResolutionBehavior,
