@@ -38,9 +38,14 @@ let package = Package(
             name: "DependencyInjection",
             dependencies: [
                 "DependencyInjectionMacros",
+                "DispatchInterpose",
                 .product(name: "Atomics", package: "swift-atomics"),
                 .product(name: "ServiceContextModule", package: "swift-service-context"),
             ]
+        ),
+        .target(
+            name: "DispatchInterpose",
+            publicHeadersPath: "Include"
         ),
         .testTarget(
             name: "DependencyInjectionTests",

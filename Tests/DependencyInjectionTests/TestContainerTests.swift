@@ -6,8 +6,9 @@
 //
 
 import Testing
+import Dispatch
 import Foundation
-import DependencyInjection
+@testable import DependencyInjection
 
 struct TestContainerTests {
     nonisolated(unsafe) let failTestBehavior = UnregisteredBehavior.custom {
@@ -168,4 +169,158 @@ struct TestContainerTests {
             #expect(factory() === val2)
         }
     }
+    
+    class ICannotBelievePeopleDoThis {
+        @discardableResult init(factory: SyncFactory<Bool>) {
+            Task {
+                try await Task.sleep(nanoseconds: 100000)
+                #expect(factory() == true)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(1)) {
+                #expect(factory() == true)
+            }
+        }
+    }
+    
+    #if canImport(Darwin)
+    @Test func whatIfWeCouldPreventLeaks_ThatWouldBeReallyCool() async throws {
+        let factory = Factory { true }
+        withTestContainer(unregisteredBehavior: failTestBehavior,
+                          leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+            // Make it visible to ALL capture paths for the duration of the scope:
+            ICannotBelievePeopleDoThis(factory: factory)
+        }
+        
+        try await withTestContainer(unregisteredBehavior: failTestBehavior,
+                                    leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) { // second test
+            try await Task {
+                try await Task.sleep(nanoseconds: 10000000)
+            }.value // wait for it
+        }
+    }
+    
+    @Test func withNestedContainer_InsideTestContainer_DoesNotCrash() async throws {
+        let factory = Factory { "test-value" }
+        
+        withTestContainer(unregisteredBehavior: failTestBehavior,
+                          leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+            // This used to crash because withNestedContainer created a regular Container 
+            // that would hit fatalErrorOnResolve instead of using leak detection
+            withNestedContainer {
+                // Register the factory in THIS container - TestContainers should be isolated
+                factory.register { "registered-value" }
+                let result = factory()
+                #expect(result == "registered-value")
+            }
+        }
+    }
+    
+    @Test func withNestedContainer_InsideTestContainer_PreservesLeakDetection() async throws {
+        let factory = Factory { true }
+        
+        await withTestContainer(unregisteredBehavior: failTestBehavior,
+                               leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+            // This should trigger leak detection through the nested container
+            await withNestedContainer {
+                // Register the factory in THIS nested container - TestContainers are isolated
+                factory.register { true }
+                // This will cause a leak that should be handled gracefully
+                ICannotBelievePeopleDoThis(factory: factory)
+            }
+        }
+    }
+
+    @Test func withTestContainer_InsideNestedContainer_DoesNotCrash() async throws {
+        let factory = Factory { "test-value" }
+        
+        withNestedContainer {
+            withTestContainer(unregisteredBehavior: failTestBehavior,
+                          leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+                // This used to crash because withNestedContainer created a regular Container 
+                // that would hit fatalErrorOnResolve instead of using leak detection
+                // Register the factory in THIS container - TestContainers should be isolated
+                factory.register { "registered-value" }
+                let result = factory()
+                #expect(result == "registered-value")
+            }
+        }
+    }
+    
+    @Test func withTestContainer_InsideNestedContainer_PreservesLeakDetection() async throws {
+        let factory = Factory { true }
+        
+        await withNestedContainer {
+            await withTestContainer(unregisteredBehavior: failTestBehavior,
+                               leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
+                // This should trigger leak detection through the nested container
+                // Register the factory in THIS nested container - TestContainers are isolated
+                factory.register { true }
+                // This will cause a leak that should be handled gracefully
+                ICannotBelievePeopleDoThis(factory: factory)
+            }
+        }
+    }
+    
+    @Test func concurrentWithTestContainer_RaceConditionFixed() async throws {
+        #if DEBUG
+        // This test verifies that the race condition in concurrent withTestContainer calls
+        // has been fixed with atomic reference counting
+        
+        // Start with fatalErrorOnResolve = false
+        let originalValue = Container.default.fatalErrorOnResolve
+        Container.default.fatalErrorOnResolve = false
+        defer { Container.default.fatalErrorOnResolve = originalValue }
+        
+        let factory1 = Factory { "task1" }
+        let factory2 = Factory { "task2" }
+        
+        // Run multiple iterations to increase chance of hitting the race condition
+        for _ in 0..<10 {
+            // Reset to false before each iteration
+            Container.default.fatalErrorOnResolve = false
+            
+            // Start two concurrent withTestContainer calls with precise timing
+            let task1 = Task {
+                do {
+                    try await withTestContainer(unregisteredBehavior: .fatalError) {
+                        factory1.register { "task1" }
+                        // Task1 runs briefly then exits, which will restore fatalErrorOnResolve to false
+                        try await Task.sleep(nanoseconds: 5_000_000) // 5ms
+                    }
+                } catch {
+                    Issue.record("Task1 threw unexpected error: \(error)")
+                }
+            }
+            
+            let task2 = Task {
+                do {
+                    // Small delay to ensure task1 starts first and sets fatalErrorOnResolve = true
+                    try await Task.sleep(nanoseconds: 1_000_000) // 1ms
+                    
+                    try await withTestContainer(unregisteredBehavior: .fatalError) {
+                        factory2.register { "task2" }
+                        // Task2 starts after task1, so it saves the wrong "original" value (true instead of false)
+                        // Task2 runs longer to ensure task1 finishes first
+                        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+                    }
+                    // When task2 finishes, it will restore fatalErrorOnResolve to true (wrong!)
+                } catch {
+                    Issue.record("Task2 threw unexpected error: \(error)")
+                }
+            }
+            
+            // Wait for both tasks to complete
+            try await task1.value
+            try await task2.value
+            
+            // Check if we hit the race condition
+            let finalValue = Container.default.fatalErrorOnResolve
+            if finalValue != false {
+                Issue.record("Race condition detected! Final value is \(finalValue) but should be false. Task2 incorrectly restored the wrong 'original' value due to the race condition.")
+                break // We proved the race condition exists, no need to continue
+            }
+        }
+        #endif
+    }
+    #endif
 }

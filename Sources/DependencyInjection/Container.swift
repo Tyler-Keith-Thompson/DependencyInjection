@@ -38,7 +38,7 @@ public class Container: @unchecked Sendable {
     
     func resolve<D>(factory: SyncFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
         }
         let currentRegisteredResolver = storage(for: factory).syncRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.syncRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
@@ -47,7 +47,7 @@ public class Container: @unchecked Sendable {
     
     func resolve<D>(factory: SyncThrowingFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) throws -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
         }
         let currentRegisteredResolver = storage(for: factory).syncThrowingRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.syncThrowingRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
@@ -56,7 +56,7 @@ public class Container: @unchecked Sendable {
 
     func resolve<D>(factory: AsyncFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) async -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
         }
         let currentRegisteredResolver = storage(for: factory).asyncRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.asyncRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
@@ -65,7 +65,7 @@ public class Container: @unchecked Sendable {
 
     func resolve<D>(factory: AsyncThrowingFactory<D>, file: String = #file, line: UInt = #line, function: String = #function) async throws -> D {
         guard !fatalErrorOnResolve else {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function)")
+            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
         }
         let currentRegisteredResolver = storage(for: factory).asyncThrowingRegistrations.currentResolver() ?? parent?.__lockedStorage(for: factory)?.asyncThrowingRegistrations.currentResolver()
         let currentResolver = currentRegisteredResolver ?? factory.resolver
