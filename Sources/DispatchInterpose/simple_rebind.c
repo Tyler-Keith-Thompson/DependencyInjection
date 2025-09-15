@@ -11,6 +11,11 @@
 #include <os/lock.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
+#if defined(__arm64e__)
+#include <ptrauth.h>
+#endif
 
 #ifdef __LP64__
 typedef struct mach_header_64 mach_header_t;
@@ -36,12 +41,19 @@ static size_t g_rebindings_nel = 0;
 static os_unfair_lock g_lock = OS_UNFAIR_LOCK_INIT;
 
 // Make the whole section containing stubs writable (page-aligned)
-static inline void make_section_writable(void *section_base, size_t section_size) {
+// Returns true on success, false on failure
+static inline bool make_section_writable(void *section_base, size_t section_size) {
     vm_address_t addr = (vm_address_t)section_base;
     vm_size_t len = (vm_size_t)section_size;
     // vm_protect expects page-aligned, but will round; we pass the section base.
-    (void)vm_protect(mach_task_self(), addr, len, /*set_max_protection*/ 0,
-                     VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+    kern_return_t ret = vm_protect(mach_task_self(), addr, len, /*set_max_protection*/ 0,
+                                   VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+    if (ret != KERN_SUCCESS) {
+        // Log the mach error for diagnostics
+        // This commonly fails on __DATA_CONST in hardened runtimes
+        return false;
+    }
+    return true;
 }
 
 static void rebind_section(struct rebinding *rebindings,
@@ -57,7 +69,11 @@ static void rebind_section(struct rebinding *rebindings,
     void **indirect_bindings_base = (void **)((uintptr_t)slide + sect->addr);
     
     // Ensure we can patch pointers in this section (once per section)
-    make_section_writable(indirect_bindings_base, (size_t)sect->size);
+    if (!make_section_writable(indirect_bindings_base, (size_t)sect->size)) {
+        // Failed to make section writable (likely __DATA_CONST in hardened runtime)
+        // Skip this section to avoid SIGBUS when attempting to write
+        return;
+    }
     
     size_t count = (size_t)(sect->size / sizeof(void *));
     for (size_t i = 0; i < count; i++) {
@@ -85,9 +101,19 @@ static void rebind_section(struct rebinding *rebindings,
                 void **slot = &indirect_bindings_base[i];
                 
                 if (rebindings[j].replaced && *rebindings[j].replaced == NULL) {
+#if defined(__arm64e__)
+                    // Strip ptrauth signature to get usable original function pointer
+                    *rebindings[j].replaced = ptrauth_strip(*slot, ptrauth_key_function_pointer);
+#else
                     *rebindings[j].replaced = *slot;
+#endif
                 }
+#if defined(__arm64e__)
+                // Sign replacement pointer with ptrauth before storing on arm64e
+                *slot = ptrauth_sign_unauthenticated(rebindings[j].replacement, ptrauth_key_function_pointer, 0);
+#else
                 *slot = rebindings[j].replacement;
+#endif
                 goto next_symbol;
             }
         }
