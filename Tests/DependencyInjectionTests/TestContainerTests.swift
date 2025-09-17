@@ -260,6 +260,18 @@ struct TestContainerTests {
             }
         }
     }
+
+    @Test func withTestContainer_OutsideNestedContainer_PreservesUnregisteredBehavior() {
+        let factory = Factory { true }
+        withKnownIssue {
+            withTestContainer(unregisteredBehavior: failTestBehavior) {
+                withNestedContainer {
+                    factory() // this should fail
+                    return
+                }
+            }
+        }
+    }
     
     @Test func concurrentWithTestContainer_RaceConditionFixed() async throws {
         #if DEBUG
