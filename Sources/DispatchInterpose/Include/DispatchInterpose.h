@@ -12,6 +12,7 @@
 #endif
 
 #include <stdbool.h>
+#include "simple_rebind.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,3 +23,4 @@ void swift_async_hooks_install(void);
 #ifdef __cplusplus
 }
 #endif
+

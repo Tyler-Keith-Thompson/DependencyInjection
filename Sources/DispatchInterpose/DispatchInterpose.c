@@ -1,7 +1,7 @@
 #include "simple_rebind.h"
 #include "DispatchInterpose.h"
 
-#if defined(__APPLE__) || defined(__MACH__)
+#if defined(DEBUG) && (defined(__APPLE__) || defined(__MACH__))
 
 #include <dispatch/dispatch.h>
 #include <pthread.h>
@@ -62,4 +62,4 @@ void swift_async_hooks_install(void) {
     // No-op on non-Darwin platforms
 }
 
-#endif // __APPLE__ || __MACH__
+#endif // DEBUG && (__APPLE__ || __MACH__)
