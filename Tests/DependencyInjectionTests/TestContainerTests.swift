@@ -103,6 +103,157 @@ struct TestContainerTests {
         }
     }
 
+    @Test func cachedScopeInterferenceAcrossConcurrentWithTestContainerBlocks_Sync() async throws {
+        class MyDep { }
+        enum Globals {
+            static let cachedDep = Factory(scope: .cached) { MyDep() }
+        }
+
+        let aReady = DispatchSemaphore(value: 0)
+        let bDone = DispatchSemaphore(value: 0)
+
+        // This should pass with per-container cached scope, using nested containers to avoid global fatal flag
+        do {
+            async let a: Void = withTestContainer {
+                let depA = MyDep()
+                Globals.cachedDep.register { depA }
+                aReady.signal()
+                let first = Globals.cachedDep()
+                #expect(first === depA)
+                // Wait for B to register and resolve, which clears and overwrites the global cache
+                _ = bDone.wait(timeout: .now() + 1)
+                // This can fail with StrongCache because cache is shared across containers
+                let second = Globals.cachedDep()
+                #expect(second === depA)
+            }
+
+            async let b: Void = withTestContainer {
+                _ = aReady.wait(timeout: .now() + 1)
+                let depB = MyDep()
+                Globals.cachedDep.register { depB }
+                let resolved = Globals.cachedDep()
+                #expect(resolved === depB)
+                bDone.signal()
+            }
+
+            _ = await (a, b)
+        }
+    }
+    
+    @Test func cachedScopeInterferenceAcrossConcurrentWithTestContainerBlocks_SyncThrowing() async throws {
+        class MyDep { }
+        enum Globals {
+            static let cachedDep = Factory(scope: .cached) { () throws -> MyDep in MyDep() }
+        }
+
+        let aReady = DispatchSemaphore(value: 0)
+        let bDone = DispatchSemaphore(value: 0)
+
+        // This should pass with per-container cached scope, using nested containers to avoid global fatal flag
+        do {
+            async let a: Void = withTestContainer {
+                let depA = MyDep()
+                Globals.cachedDep.register { depA }
+                aReady.signal()
+                let first = try Globals.cachedDep()
+                #expect(first === depA)
+                // Wait for B to register and resolve, which clears and overwrites the global cache
+                _ = bDone.wait(timeout: .now() + 1)
+                // This can fail with StrongCache because cache is shared across containers
+                let second = try Globals.cachedDep()
+                #expect(second === depA)
+            }
+
+            async let b: Void = withTestContainer {
+                _ = aReady.wait(timeout: .now() + 1)
+                let depB = MyDep()
+                Globals.cachedDep.register { depB }
+                let resolved = try Globals.cachedDep()
+                #expect(resolved === depB)
+                bDone.signal()
+            }
+
+            _ = try await (a, b)
+        }
+    }
+    
+    @Test func cachedScopeInterferenceAcrossConcurrentWithTestContainerBlocks_Async() async throws {
+        final class MyDep: Sendable { }
+        enum Globals {
+            nonisolated(unsafe) static let cachedDep = Factory(scope: .cached) { () async -> MyDep in MyDep() }
+        }
+
+        // Use continuations for coordination
+        let (aReadyStream, aReadyContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (bDoneStream, bDoneContinuation) = AsyncStream.makeStream(of: Void.self)
+
+        // This should pass with per-container cached scope, using nested containers to avoid global fatal flag
+        do {
+            async let a: Void = withTestContainer {
+                let depA = MyDep()
+                Globals.cachedDep.register { depA }
+                aReadyContinuation.yield(())
+                let first = await Globals.cachedDep()
+                #expect(first === depA)
+                // Wait for B to register and resolve, which clears and overwrites the global cache
+                for await _ in bDoneStream { break }
+                // This can fail with StrongCache because cache is shared across containers
+                let second = await Globals.cachedDep()
+                #expect(second === depA)
+            }
+
+            async let b: Void = withTestContainer {
+                for await _ in aReadyStream { break }
+                let depB = MyDep()
+                Globals.cachedDep.register { depB }
+                let resolved = await Globals.cachedDep()
+                #expect(resolved === depB)
+                bDoneContinuation.yield(())
+            }
+
+            _ = await (a, b)
+        }
+    }
+    
+    @Test func cachedScopeInterferenceAcrossConcurrentWithTestContainerBlocks_AsyncThrowing() async throws {
+        final class MyDep: Sendable { }
+        enum Globals {
+            nonisolated(unsafe) static let cachedDep = Factory(scope: .cached) { () async throws -> MyDep in MyDep() }
+        }
+
+        // Use continuations for coordination
+        let (aReadyStream, aReadyContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (bDoneStream, bDoneContinuation) = AsyncStream.makeStream(of: Void.self)
+
+        // This should pass with per-container cached scope, using nested containers to avoid global fatal flag
+        do {
+            async let a: Void = withTestContainer {
+                let depA = MyDep()
+                Globals.cachedDep.register { depA }
+                aReadyContinuation.yield(())
+                let first = try await Globals.cachedDep()
+                #expect(first === depA)
+                // Wait for B to register and resolve, which clears and overwrites the global cache
+                for await _ in bDoneStream { break }
+                // This can fail with StrongCache because cache is shared across containers
+                let second = try await Globals.cachedDep()
+                #expect(second === depA)
+            }
+
+            async let b: Void = withTestContainer {
+                for await _ in aReadyStream { break }
+                let depB = MyDep()
+                Globals.cachedDep.register { depB }
+                let resolved = try await Globals.cachedDep()
+                #expect(resolved === depB)
+                bDoneContinuation.yield(())
+            }
+
+            _ = try await (a, b)
+        }
+    }
+    
+    // Keep the original test for backward compatibility
     @Test func cachedScopeInterferenceAcrossConcurrentWithTestContainerBlocks() async throws {
         class MyDep { }
         enum Globals {
