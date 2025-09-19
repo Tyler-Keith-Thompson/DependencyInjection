@@ -42,6 +42,13 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
     public let cache: any Cache = StrongCache()
     private var taskStorage = [ObjectIdentifier: Any]()
     
+    func clearTaskStorage(for container: Container) {
+        let containerId = ObjectIdentifier(container)
+        lock.protect {
+            taskStorage[containerId] = nil
+        }
+    }
+    
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
         lock.protect {
             if cache.hasValue, let result = cache() as? D {
@@ -113,6 +120,13 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     public let cache: any Cache = WeakCache()
     private var taskStorage = [ObjectIdentifier: Any]()
+    
+    func clearTaskStorage(for container: Container) {
+        let containerId = ObjectIdentifier(container)
+        lock.protect {
+            taskStorage[containerId] = nil
+        }
+    }
     
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
         lock.protect {
