@@ -27,11 +27,6 @@ extension _Factory {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs === rhs
     }
-    
-    @discardableResult public func useProduction() -> Self {
-        Container.current.useProduction(on: self)
-        return self
-    }
 }
 
 public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
@@ -56,6 +51,11 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     
     @discardableResult public func popRegistration() -> Self {
         Container.current.popResolver(for: self)
+        return self
+    }
+    
+    @discardableResult public func useProduction() -> Self {
+        Container.current.useProduction(on: self)
         return self
     }
 }
@@ -84,6 +84,11 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
         Container.current.popResolver(for: self)
         return self
     }
+    
+    @discardableResult public func useProduction() -> Self {
+        Container.current.useProduction(on: self)
+        return self
+    }
 }
 
 public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Sendable {
@@ -107,6 +112,11 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
     
     @discardableResult public func popRegistration() -> Self {
         Container.current.popResolver(for: self)
+        return self
+    }
+    
+    @discardableResult public func useProduction() -> Self {
+        Container.current.useProduction(on: self)
         return self
     }
 }
@@ -133,6 +143,11 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     
     @discardableResult public func popRegistration() -> Self {
         Container.current.popResolver(for: self)
+        return self
+    }
+    
+    @discardableResult public func useProduction() -> Self {
+        Container.current.useProduction(on: self)
         return self
     }
 }
