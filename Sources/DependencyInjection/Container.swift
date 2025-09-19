@@ -5,14 +5,15 @@
 //  Created by Tyler Thompson on 7/31/24.
 //
 import Foundation
+import Atomics
 
 public class Container: @unchecked Sendable {
     private let lock = NSRecursiveLock()
     private var storage = [AnyHashable: StorageBase]()
-    private var _fatalErrorOnResolve: Bool = false
+    private var _fatalErrorOnResolve = ManagedAtomic(false)
     var fatalErrorOnResolve: Bool {
-        get { lock.withLock { _fatalErrorOnResolve } }
-        set { lock.withLock { _fatalErrorOnResolve = newValue } }
+        get { _fatalErrorOnResolve.load(ordering: .sequentiallyConsistent) }
+        set { _fatalErrorOnResolve.store(newValue, ordering: .sequentiallyConsistent) }
     }
     
     var parent: Container?
@@ -21,9 +22,7 @@ public class Container: @unchecked Sendable {
     }
     
     func storage<F: _Factory>(for factory: F) -> Storage<F>? {
-        lock.lock()
-        defer { lock.unlock() }
-        return (self.storage[factory] as? Storage<F>)
+        lock.protect { (self.storage[factory] as? Storage<F>) }
     }
     
     func resolve<D>(factory: SyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) -> D {
@@ -111,15 +110,22 @@ public class Container: @unchecked Sendable {
     }
     
     @discardableResult func register<F: _Factory>(factory: F) -> Storage<F> {
-        lock.lock()
-        defer { lock.unlock() }
-        if let storage = storage[factory] as? Storage<F> {
-            return storage
-        } else {
-            let newStorage = Storage(factory: factory)
-            storage[factory] = newStorage
-            return newStorage
+        lock.protect {
+            if let storage = storage[factory] as? Storage<F> {
+                return storage
+            } else {
+                let newStorage = Storage(factory: factory)
+                storage[factory] = newStorage
+                return newStorage
+            }
         }
+    }
+    
+    func useProduction<F: _Factory>(on factory: F) {
+        guard let storage = storage(for: factory) else {
+            preconditionFailure("Factory not registered! That should've happened on factory init")
+        }
+        storage.useProduction = true
     }
 }
 
@@ -127,7 +133,11 @@ extension Container {
     class StorageBase { }
     
     final class Storage<Factory: _Factory>: StorageBase, @unchecked Sendable {
-        private let lock = NSRecursiveLock()
+        private let _useProduction = ManagedAtomic(false)
+        var useProduction: Bool {
+            get { _useProduction.load(ordering: .sequentiallyConsistent) }
+            set { _useProduction.store(newValue, ordering: .sequentiallyConsistent) }
+        }
         let syncRegistrations = SyncRegistrations<Factory.Dependency>()
         let syncThrowingRegistrations = SyncThrowingRegistrations<Factory.Dependency>()
         let asyncRegistrations = AsyncRegistrations<Factory.Dependency>()

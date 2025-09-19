@@ -11,7 +11,6 @@ protocol _Factory: AnyObject, Hashable, Sendable {
     associatedtype Dependency
     associatedtype Resolver
     
-    var shouldUseProduction: ManagedAtomic<Bool> { get }
     var resolver: Resolver { get }
     var scope: Scope { get }
     
@@ -28,13 +27,17 @@ extension _Factory {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs === rhs
     }
+    
+    @discardableResult public func useProduction() -> Self {
+        Container.current.useProduction(on: self)
+        return self
+    }
 }
 
 public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     public typealias Resolver = () -> Dependency
     
     public let scope: Scope
-    let shouldUseProduction = ManagedAtomic<Bool>(false)
     let resolver: Resolver
     init(scope: Scope, resolver: @escaping Resolver) {
         self.scope = scope
@@ -42,17 +45,8 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
         Container.default.register(factory: self)
     }
     
-    @discardableResult public func useProduction() -> Self {
-        shouldUseProduction.store(true, ordering: .sequentiallyConsistent)
-        return self
-    }
-
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) -> Dependency {
-        if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
-            return resolver()
-        } else {
-            return Container.current.resolve(factory: self, file: file, line: line, function: function)
-        }
+        Container.current.resolve(factory: self, file: file, line: line, function: function)
     }
 
     public func register(_ resolver: @escaping Resolver) {
@@ -69,7 +63,6 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
 public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendable {
     public typealias Resolver = () throws -> Dependency
     public let scope: Scope
-    let shouldUseProduction = ManagedAtomic<Bool>(false)
     let resolver: Resolver
     
     init(scope: Scope, resolver: @escaping Resolver) {
@@ -78,17 +71,8 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
         Container.default.register(factory: self)
     }
 
-    @discardableResult public func useProduction() -> Self {
-        shouldUseProduction.store(true, ordering: .sequentiallyConsistent)
-        return self
-    }
-
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) throws -> Dependency {
-        if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
-            return try resolver()
-        } else {
-            return try Container.current.resolve(factory: self, file: file, line: line, function: function)
-        }
+        try Container.current.resolve(factory: self, file: file, line: line, function: function)
     }
     
     public func register(_ resolver: @escaping Resolver) {
@@ -105,7 +89,6 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
 public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Sendable {
     public typealias Resolver = @Sendable () async -> Dependency
     public let scope: Scope
-    let shouldUseProduction = ManagedAtomic<Bool>(false)
     let resolver: Resolver
     init(scope: Scope, resolver: @escaping Resolver) {
         self.scope = scope
@@ -113,17 +96,8 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
         Container.default.register(factory: self)
     }
     
-    @discardableResult public func useProduction() -> Self {
-        shouldUseProduction.store(true, ordering: .sequentiallyConsistent)
-        return self
-    }
-
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) async -> Dependency {
-        if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
-            return await resolver()
-        } else {
-            return await Container.current.resolve(factory: self, file: file, line: line, function: function)
-        }
+        await Container.current.resolve(factory: self, file: file, line: line, function: function)
     }
     
     public func register(_ resolver: @escaping Resolver) {
@@ -141,7 +115,6 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     public typealias Resolver = @Sendable () async throws -> Dependency
     
     public let scope: Scope
-    let shouldUseProduction = ManagedAtomic<Bool>(false)
     let resolver: Resolver
     init(scope: Scope, resolver: @escaping Resolver) {
         self.scope = scope
@@ -149,17 +122,8 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
         Container.default.register(factory: self)
     }
     
-    @discardableResult public func useProduction() -> Self {
-        shouldUseProduction.store(true, ordering: .sequentiallyConsistent)
-        return self
-    }
-
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) async throws -> Dependency {
-        if shouldUseProduction.load(ordering: .sequentiallyConsistent) {
-            return try await resolver()
-        } else {
-            return try await Container.current.resolve(factory: self, file: file, line: line, function: function)
-        }
+        try await Container.current.resolve(factory: self, file: file, line: line, function: function)
     }
     
     public func register(_ resolver: @escaping Resolver) {

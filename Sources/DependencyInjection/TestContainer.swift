@@ -41,7 +41,9 @@ final class TestContainer: Container, @unchecked Sendable {
     }
     
     override func resolve<D>(factory: SyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) -> D {
-        if let registered = storage(for: factory)?.syncRegistrations.currentResolver() {
+        let storage = storage(for: factory)
+        guard storage?.useProduction != true else { return factory.resolver() }
+        if let registered = storage?.syncRegistrations.currentResolver() {
             return factory.scope.resolve(resolver: registered)
         }
         
@@ -61,7 +63,9 @@ final class TestContainer: Container, @unchecked Sendable {
     }
     
     override func resolve<D>(factory: SyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) throws -> D {
-        if let registered = storage(for: factory)?.syncThrowingRegistrations.currentResolver() {
+        let storage = storage(for: factory)
+        guard storage?.useProduction != true else { return try factory.resolver() }
+        if let registered = storage?.syncThrowingRegistrations.currentResolver() {
             return try factory.scope.resolve(resolver: registered)
         }
         
@@ -81,7 +85,9 @@ final class TestContainer: Container, @unchecked Sendable {
     }
 
     override func resolve<D>(factory: AsyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async -> D {
-        if let registered = storage(for: factory)?.asyncRegistrations.currentResolver() {
+        let storage = storage(for: factory)
+        guard storage?.useProduction != true else { return await factory.resolver() }
+        if let registered = storage?.asyncRegistrations.currentResolver() {
             return await factory.scope.resolve(resolver: registered)
         }
         
@@ -101,7 +107,9 @@ final class TestContainer: Container, @unchecked Sendable {
     }
 
     override func resolve<D>(factory: AsyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async throws -> D {
-        if let registered = storage(for: factory)?.asyncThrowingRegistrations.currentResolver() {
+        let storage = storage(for: factory)
+        guard storage?.useProduction != true else { return try await factory.resolver() }
+        if let registered = storage?.asyncThrowingRegistrations.currentResolver() {
             return try await factory.scope.resolve(resolver: registered)
         }
         

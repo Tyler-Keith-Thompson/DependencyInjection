@@ -7,6 +7,11 @@
 
 import Foundation
 
+@globalActor
+actor DIActor: GlobalActor {
+    static let shared = DIActor()
+}
+
 protocol ScopeWithCache {
     var cache: any Cache { get }
 }
@@ -64,7 +69,7 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
         }
     }
     
-    override func resolve<D>(resolver: @escaping AsyncFactory<D>.Resolver) async -> D {
+    @DIActor override func resolve<D>(resolver: @escaping AsyncFactory<D>.Resolver) async -> D {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
@@ -86,7 +91,7 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
         return await task.value
     }
     
-    override func resolve<D>(resolver: @escaping AsyncThrowingFactory<D>.Resolver) async throws -> D {
+    @DIActor override func resolve<D>(resolver: @escaping AsyncThrowingFactory<D>.Resolver) async throws -> D {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
@@ -136,7 +141,7 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
         }
     }
     
-    override func resolve<D>(resolver: @escaping AsyncFactory<D>.Resolver) async -> D {
+    @DIActor override func resolve<D>(resolver: @escaping AsyncFactory<D>.Resolver) async -> D {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
@@ -158,7 +163,7 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
         return await task.value
     }
     
-    override func resolve<D>(resolver: @escaping AsyncThrowingFactory<D>.Resolver) async throws -> D {
+    @DIActor override func resolve<D>(resolver: @escaping AsyncThrowingFactory<D>.Resolver) async throws -> D {
         if cache.hasValue, let result = cache() as? D {
             return result
         }

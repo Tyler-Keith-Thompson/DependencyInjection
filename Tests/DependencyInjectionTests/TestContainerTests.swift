@@ -486,4 +486,112 @@ struct TestContainerTests {
         #endif
     }
     #endif
+    
+    // IMPORTANT: These two tests (useProductionInterferesWithOtherTests_ThisTestShouldFail and
+    // useProductionPersistsAcrossConcurrentTests_ThisTestShouldFail) are EXPECTED TO FAIL.
+    // They demonstrate a design flaw where calling factory.useProduction() sets a global flag
+    // on the factory instance that persists across test runs, causing test interference.
+    //
+    // The issue: Factory instances are typically defined as static properties, and useProduction()
+    // modifies a global flag on that shared instance. Once set, ALL subsequent tests will bypass
+    // their test containers and use production values instead of test-registered values.
+    //
+    // This is problematic because:
+    // 1. Tests become order-dependent
+    // 2. Concurrent tests can interfere with each other
+    // 3. Test isolation is broken
+    
+    @Test func useProductionInterferesWithOtherTests_ThisTestShouldFail() async throws {
+        // This test demonstrates the issue where useProduction() sets a global flag
+        // that persists across tests, causing interference
+        
+        class ProductionService {
+            let name: String
+            init(name: String = "production") {
+                self.name = name
+            }
+        }
+        
+        // Static factory that persists across test runs
+        enum GlobalFactories {
+            static let service = Factory { ProductionService() }
+        }
+        
+        // PART 1: First "test" that uses production
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            // This simulates a test that decides to use production values
+            // The problem is this sets a global flag on the factory!
+            GlobalFactories.service.useProduction()
+            
+            let result = GlobalFactories.service()
+            #expect(result.name == "production")
+        }
+        
+        // PART 2: Second "test" that expects to use test registrations
+        // This simulates a completely different test that runs after the first one
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            // Register a test-specific instance
+            let testService = ProductionService(name: "test-instance")
+            GlobalFactories.service.register { testService }
+            
+            // This SHOULD return our test instance, but because the previous
+            // test called useProduction(), this factory is permanently in 
+            // production mode and will ignore our registration!
+            let result = GlobalFactories.service()
+            
+            // This expectation will FAIL, proving the interference
+            #expect(result.name == "test-instance")
+        }
+    }
+    
+    @Test func useProductionPersistsAcrossConcurrentTests_ThisTestShouldFail() async throws {
+        // This test shows the race condition when multiple tests run concurrently
+        // and one uses production mode
+        
+        final class ConcurrentService: Sendable {
+            let id: Int
+            init(id: Int = 0) {
+                self.id = id
+            }
+        }
+        
+        enum ConcurrentFactories {
+            static let service = Factory { ConcurrentService() }
+        }
+        
+        let testAStarted = DispatchSemaphore(value: 0)
+        let testBCanProceed = DispatchSemaphore(value: 0)
+        
+        async let testA: Void = withTestContainer(unregisteredBehavior: failTestBehavior) {
+            // Test A uses production mode
+            ConcurrentFactories.service.useProduction()
+            testAStarted.signal()
+            
+            // Wait a bit to ensure Test B tries to use its registration
+            _ = testBCanProceed.wait(timeout: .now() + 1)
+            
+            let result = ConcurrentFactories.service()
+            #expect(result.id == 0, "Test A should get production instance")
+        }
+        
+        async let testB: Void = withTestContainer(unregisteredBehavior: failTestBehavior) {
+            // Wait for Test A to set production mode
+            _ = testAStarted.wait(timeout: .now() + 1)
+            
+            // Test B registers its own instance
+            let testInstance = ConcurrentService(id: 999)
+            ConcurrentFactories.service.register { testInstance }
+            
+            // This SHOULD return our registered instance (id: 999)
+            // but will actually return production (id: 0) because
+            // Test A has set the global production flag!
+            let result = ConcurrentFactories.service()
+            
+            testBCanProceed.signal()
+            
+            #expect(result.id == 999)
+        }
+        
+        _ = await (testA, testB)
+    }
 }
