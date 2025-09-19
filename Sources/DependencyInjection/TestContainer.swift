@@ -14,30 +14,6 @@ private let _fatalErrorOnResolveRefCount = ManagedAtomic<Int>(0)
 private nonisolated(unsafe) var _originalFatalErrorOnResolveValue: Bool = false
 private let _fatalErrorOnResolveValueSaved = ManagedAtomic<Bool>(false)
 
-// Special container that cannot store any registrations - used as parent for TestContainer
-private final class IsolatedContainer: Container {
-    override func addResolver<D>(for factory: SyncFactory<D>, resolver: @escaping SyncFactory<D>.Resolver) {
-        // Do nothing - prevent any registrations
-    }
-    
-    override func addResolver<D>(for factory: SyncThrowingFactory<D>, resolver: @escaping SyncThrowingFactory<D>.Resolver) {
-        // Do nothing - prevent any registrations
-    }
-    
-    override func addResolver<D>(for factory: AsyncFactory<D>, resolver: @escaping AsyncFactory<D>.Resolver) {
-        // Do nothing - prevent any registrations
-    }
-    
-    override func addResolver<D>(for factory: AsyncThrowingFactory<D>, resolver: @escaping AsyncThrowingFactory<D>.Resolver) {
-        // Do nothing - prevent any registrations
-    }
-    
-    override func storage<F: _Factory>(for factory: F) -> Storage<F>? {
-        // Return nil - no storage available
-        return nil
-    }
-}
-
 final class TestContainer: Container, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     let unregisteredBehavior: UnregisteredBehavior
@@ -161,15 +137,7 @@ final class TestContainer: Container, @unchecked Sendable {
     }
 
     override func storage<F: _Factory>(for factory: F) -> Storage<F>? {
-        lock.protect {
-            if let storage = storage[factory] as? Container.Storage<F> {
-                return storage
-            } else {
-                let newStorage = Container.Storage(factory: factory)
-                storage[factory] = newStorage
-                return newStorage
-            }
-        }
+        register(factory: factory) as? Container.Storage<F>
     }
 }
 
@@ -358,9 +326,7 @@ public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .f
         }
     }
     
-    // Create a parent container that cannot store any registrations for complete isolation
-    let isolatedParent = IsolatedContainer(parent: nil)
-    let testContainer = TestContainer(parent: isolatedParent,
+    let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
                                       leakedResolutionBehavior: leakedResolutionBehavior,
                                       file: file, line: line, function: function)
@@ -399,9 +365,7 @@ public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
         }
     }
     
-    // Create a parent container that cannot store any registrations for complete isolation
-    let isolatedParent = IsolatedContainer(parent: nil)
-    let testContainer = TestContainer(parent: isolatedParent,
+    let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
                                       leakedResolutionBehavior: leakedResolutionBehavior,
                                       file: file, line: line, function: function)
