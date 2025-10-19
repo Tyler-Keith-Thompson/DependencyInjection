@@ -594,4 +594,43 @@ struct TestContainerTests {
         
         _ = await (testA, testB)
     }
+    
+    @Test func testContainerHasOptionalDefaults() async throws {
+        withTestContainer(defaults: .libraryDefaults) {
+            #expect(Container.prodService() is NoopProdService) // does not crash
+        }
+    }
+    
+    @Test func testContainerHasComposableDefaults() async throws {
+        withTestContainer(defaults: .myFeatureDefaults) {
+            #expect(Container.prodService() is NoopProdService) // does not crash
+        }
+    }
+}
+
+// what a feature dev might write
+extension TestDefaults {
+    static let myFeatureDefaults = TestDefaults {
+        .libraryDefaults // all defaults from the library
+        prodServiceTestDefault // just this single one, this could be from anywhere
+        TestDefault { Container.prodService.testValue { NoopProdService() } } // even if the library author didn't define it
+    }
+}
+
+protocol ProdService { }
+
+struct _ProdService: ProdService { }
+struct NoopProdService: ProdService { }
+
+extension Container {
+    static let prodService = Factory { _ProdService() as ProdService }
+}
+
+// what a library author would do
+extension TestDefaults {
+    static let libraryDefaults = TestDefaults {
+        prodServiceTestDefault
+    }
+    
+    static let prodServiceTestDefault = TestDefault { Container.prodService.testValue { NoopProdService() } }
 }

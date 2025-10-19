@@ -7,6 +7,7 @@
 
 import Testing
 import DependencyInjection
+import Atomics
 
 struct LazyInjectedTests {
     @Test func lazyInjectedPropertyWrapper_WithSyncFactory_ResolvesEveryTime() async throws {
@@ -16,16 +17,16 @@ struct LazyInjectedTests {
         
         withTestContainer {
             let expected = ExampleDependency()
-            var count = 0
+            let count = ManagedAtomic(0)
             Container.exampleDependency.register {
-                count += 1
+                count.wrappingIncrement(ordering: .sequentiallyConsistent)
                 return expected
             }
             let example = Example()
-            #expect(count == 0)
+            #expect(count.load(ordering: .sequentiallyConsistent) == 0)
             #expect(example.dependency === expected)
             #expect(example.dependency === expected)
-            #expect(count == 1)
+            #expect(count.load(ordering: .sequentiallyConsistent) == 1)
         }
     }
     
@@ -37,16 +38,16 @@ struct LazyInjectedTests {
         try withTestContainer {
             let expectedResult = Result { try ExampleThrowingDependency() }
             let expected = try expectedResult.get()
-            var count = 0
+            let count = ManagedAtomic(0)
             Container.exampleThrowingDependency.register {
-                count += 1
+                count.wrappingIncrement(ordering: .sequentiallyConsistent)
                 return try expectedResult.get()
             }
             let example = Example()
-            #expect(count == 0)
+            #expect(count.load(ordering: .sequentiallyConsistent) == 0)
             #expect(try example.dependency.get() === expected)
             #expect(try example.dependency.get() === expected)
-            #expect(count == 1)
+            #expect(count.load(ordering: .sequentiallyConsistent) == 1)
         }
     }
     
