@@ -92,7 +92,11 @@ public struct TestDefault: Sendable {
     fileprivate func erase() -> AnyTestDefaults { AnyTestDefaults { self.apply(to: $0) } }
 }
 
-public struct TestDefaults: Sendable {
+public struct TestDefaults: Sendable, ExpressibleByArrayLiteral {
+    public init(arrayLiteral elements: TestDefaults...) {
+        self.groups = elements.map { $0.erase() }
+    }
+    
     fileprivate let groups: [AnyTestDefaults]
     public init(@TestDefaultsBuilder _ make: () -> [AnyTestDefaults]) { self.groups = make() }
     func apply(to c: Container) { groups.forEach { $0.apply(to: c) } }

@@ -98,7 +98,7 @@ struct InjectedPropertyWrapperTests {
             let example = Example()
             #expect(try await example.dependency.value === expected)
             #expect(try await example.dependency.value === expected)
-            #expect(try await test.count == 2)
+            #expect(await test.count == 2)
         }
     }
     

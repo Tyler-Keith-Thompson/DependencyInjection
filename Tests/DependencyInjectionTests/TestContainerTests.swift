@@ -369,10 +369,10 @@ struct TestContainerTests {
     @Test func withNestedContainer_InsideTestContainer_PreservesLeakDetection() async throws {
         let factory = Factory { true }
         
-        await withTestContainer(unregisteredBehavior: failTestBehavior,
+        withTestContainer(unregisteredBehavior: failTestBehavior,
                                leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
             // This should trigger leak detection through the nested container
-            await withNestedContainer {
+            withNestedContainer {
                 // Register the factory in THIS nested container - TestContainers are isolated
                 factory.register { true }
                 // This will cause a leak that should be handled gracefully
@@ -400,8 +400,8 @@ struct TestContainerTests {
     @Test func withTestContainer_InsideNestedContainer_PreservesLeakDetection() async throws {
         let factory = Factory { true }
         
-        await withNestedContainer {
-            await withTestContainer(unregisteredBehavior: failTestBehavior,
+        withNestedContainer {
+            withTestContainer(unregisteredBehavior: failTestBehavior,
                                leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
                 // This should trigger leak detection through the nested container
                 // Register the factory in THIS nested container - TestContainers are isolated
@@ -417,7 +417,7 @@ struct TestContainerTests {
         withKnownIssue {
             withTestContainer(unregisteredBehavior: failTestBehavior) {
                 withNestedContainer {
-                    factory() // this should fail
+                    _ = factory() // this should fail
                     return
                 }
             }
@@ -603,6 +603,12 @@ struct TestContainerTests {
     
     @Test func testContainerHasComposableDefaults() async throws {
         withTestContainer(defaults: .myFeatureDefaults) {
+            #expect(Container.prodService() is NoopProdService) // does not crash
+        }
+    }
+    
+    @Test func testContainerHasMultipleDefaults() async throws {
+        withTestContainer(defaults: [.libraryDefaults, .myFeatureDefaults]) {
             #expect(Container.prodService() is NoopProdService) // does not crash
         }
     }
