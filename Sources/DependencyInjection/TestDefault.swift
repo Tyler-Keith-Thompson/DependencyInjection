@@ -104,14 +104,3 @@ public struct AnyTestDefaults: Sendable {
     fileprivate init(_ apply: @Sendable @escaping (Container) -> Void) { self._apply = apply }
     func apply(to c: Container) { _apply(c) }
 }
-
-// MARK: Entry point
-//
-//public func withTestContainer<T>(defaults: TestDefaults,
-//                                 _ body: @escaping () throws -> T) rethrows -> T {
-//    try withTestContainer {
-//        var c = Container.current
-//        defaults.apply(to: c)          // <-- deferred execution happens here
-//        return try body()
-//    }
-//}
