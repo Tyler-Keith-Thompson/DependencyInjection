@@ -14,7 +14,7 @@ private let _fatalErrorOnResolveRefCount = ManagedAtomic<Int>(0)
 private nonisolated(unsafe) var _originalFatalErrorOnResolveValue: Bool = false
 private let _fatalErrorOnResolveValueSaved = ManagedAtomic<Bool>(false)
 
-public final class TestContainer: Container, @unchecked Sendable {
+final class TestContainer: Container, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     let unregisteredBehavior: UnregisteredBehavior
     let leakedResolutionBehavior: any LeakedResolutionBehavior
