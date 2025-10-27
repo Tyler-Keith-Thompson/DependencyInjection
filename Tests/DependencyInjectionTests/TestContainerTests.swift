@@ -369,10 +369,10 @@ struct TestContainerTests {
     @Test func withNestedContainer_InsideTestContainer_PreservesLeakDetection() async throws {
         let factory = Factory { true }
         
-        await withTestContainer(unregisteredBehavior: failTestBehavior,
+        withTestContainer(unregisteredBehavior: failTestBehavior,
                                leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
             // This should trigger leak detection through the nested container
-            await withNestedContainer {
+            withNestedContainer {
                 // Register the factory in THIS nested container - TestContainers are isolated
                 factory.register { true }
                 // This will cause a leak that should be handled gracefully
@@ -400,8 +400,8 @@ struct TestContainerTests {
     @Test func withTestContainer_InsideNestedContainer_PreservesLeakDetection() async throws {
         let factory = Factory { true }
         
-        await withNestedContainer {
-            await withTestContainer(unregisteredBehavior: failTestBehavior,
+        withNestedContainer {
+            withTestContainer(unregisteredBehavior: failTestBehavior,
                                leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
                 // This should trigger leak detection through the nested container
                 // Register the factory in THIS nested container - TestContainers are isolated
@@ -417,7 +417,7 @@ struct TestContainerTests {
         withKnownIssue {
             withTestContainer(unregisteredBehavior: failTestBehavior) {
                 withNestedContainer {
-                    factory() // this should fail
+                    _ = factory() // this should fail
                     return
                 }
             }
@@ -594,4 +594,49 @@ struct TestContainerTests {
         
         _ = await (testA, testB)
     }
+    
+    @Test func testContainerHasOptionalDefaults() async throws {
+        withTestContainer(defaults: .libraryDefaults) {
+            #expect(Container.prodService() is NoopProdService) // does not crash
+        }
+    }
+    
+    @Test func testContainerHasComposableDefaults() async throws {
+        withTestContainer(defaults: .myFeatureDefaults) {
+            #expect(Container.prodService() is NoopProdService) // does not crash
+        }
+    }
+    
+    @Test func testContainerHasMultipleDefaults() async throws {
+        withTestContainer(defaults: [.libraryDefaults, .myFeatureDefaults]) {
+            #expect(Container.prodService() is NoopProdService) // does not crash
+        }
+    }
+}
+
+// what a feature dev might write
+extension TestDefaults {
+    static let myFeatureDefaults = TestDefaults {
+        .libraryDefaults // all defaults from the library
+        prodServiceTestDefault // just this single one, this could be from anywhere
+        TestDefault { Container.prodService.testValue { NoopProdService() } } // even if the library author didn't define it
+    }
+}
+
+protocol ProdService { }
+
+struct _ProdService: ProdService { }
+struct NoopProdService: ProdService { }
+
+extension Container {
+    static let prodService = Factory { _ProdService() as ProdService }
+}
+
+// what a library author would do
+extension TestDefaults {
+    static let libraryDefaults = TestDefaults {
+        prodServiceTestDefault
+    }
+    
+    static let prodServiceTestDefault = TestDefault { Container.prodService.testValue { NoopProdService() } }
 }

@@ -6,6 +6,7 @@
 //
 
 import Testing
+import Atomics
 import DependencyInjection
 import DependencyInjectionMacros
 
@@ -17,15 +18,15 @@ struct InjectedPropertyWrapperTests {
         
         withTestContainer {
             let expected = ExampleDependency()
-            var count = 0
+            let count = ManagedAtomic(0)
             Container.exampleDependency.register {
-                count += 1
+                count.wrappingIncrement(ordering: .sequentiallyConsistent)
                 return expected
             }
             let example = Example()
             #expect(example.dependency === expected)
             #expect(example.dependency === expected)
-            #expect(count == 2)
+            #expect(count.load(ordering: .sequentiallyConsistent) == 2)
         }
     }
     
@@ -37,15 +38,15 @@ struct InjectedPropertyWrapperTests {
         try withTestContainer {
             let expectedResult = Result { try ExampleThrowingDependency() }
             let expected = try expectedResult.get()
-            var count = 0
+            let count = ManagedAtomic(0)
             Container.exampleThrowingDependency.register {
-                count += 1
+                count.wrappingIncrement(ordering: .sequentiallyConsistent)
                 return try expectedResult.get()
             }
             let example = Example()
             #expect(try example.dependency.get() === expected)
             #expect(try example.dependency.get() === expected)
-            #expect(count == 2)
+            #expect(count.load(ordering: .sequentiallyConsistent) == 2)
         }
     }
     
@@ -97,7 +98,7 @@ struct InjectedPropertyWrapperTests {
             let example = Example()
             #expect(try await example.dependency.value === expected)
             #expect(try await example.dependency.value === expected)
-            #expect(try await test.count == 2)
+            #expect(await test.count == 2)
         }
     }
     
@@ -108,14 +109,14 @@ struct InjectedPropertyWrapperTests {
         
         withTestContainer {
             let expected = ExampleDependency()
-            var count = 0
+            let count = ManagedAtomic(0)
             Container.exampleDependency.register {
-                count += 1
+                count.wrappingIncrement(ordering: .sequentiallyConsistent)
                 return expected
             }
             #expect(Example.dependency === expected)
             #expect(Example.dependency === expected)
-            #expect(count == 2)
+            #expect(count.load(ordering: .sequentiallyConsistent) == 2)
         }
     }
 }

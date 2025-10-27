@@ -309,7 +309,8 @@ public enum UnregisteredBehavior {
 
 // Main functions with both leak detection and traceability
 @discardableResult
-public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .fatalError,
+public func withTestContainer<T>(defaults: TestDefaults? = nil,
+                                 unregisteredBehavior: UnregisteredBehavior = .fatalError,
                                  leakedResolutionBehavior: any LeakedResolutionBehavior = DefaultLeakedResolutionBehavior(),
                                  file: String = #file, line: UInt = #line, function: String = #function,
                                  operation: () throws -> T) rethrows -> T {
@@ -342,12 +343,14 @@ public func withTestContainer<T>(unregisteredBehavior: UnregisteredBehavior = .f
     return try ServiceContext.withValue(context, operation: {
         testContainer.executingTest = true
         defer { testContainer.executingTest = false }
+        defaults?.apply(to: testContainer)
         return try operation()
     })
 }
 
 @discardableResult
 public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
+                                 defaults: TestDefaults? = nil,
                                  unregisteredBehavior: UnregisteredBehavior = .fatalError,
                                  leakedResolutionBehavior: any LeakedResolutionBehavior = DefaultLeakedResolutionBehavior(),
                                  file: String = #file, line: UInt = #line, function: String = #function,
@@ -381,6 +384,7 @@ public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
     return try await ServiceContext.withValue(context, operation: {
         testContainer.executingTest = true
         defer { testContainer.executingTest = false }
+        defaults?.apply(to: testContainer)
         return try await operation()
     })
 }
