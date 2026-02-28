@@ -16,7 +16,7 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "DependencyInjection",
-            targets: ["DependencyInjection", "DependencyInjectionMacros"]),
+            targets: ["DependencyInjection"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-service-context", from: "1.0.0"),
