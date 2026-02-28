@@ -7,13 +7,22 @@
 
 import ServiceContextModule
 
-/// Executes a synchronous operation within the context of the given container reference.
+/// Executes a synchronous operation within the context of the given container.
 ///
-/// Use this function to reapply a containerized context to tasks or operations
-/// that would otherwise lose it, such as when detaching a task.
+/// Use this function to reapply container context to operations that would otherwise
+/// lose it, such as detached tasks or GCD blocks:
+///
+/// ```swift
+/// let container = Container.current
+/// Task.detached {
+///     withContainer(container) {
+///         let logger = Container.logger() // resolves in the correct container
+///     }
+/// }
+/// ```
 ///
 /// - Parameters:
-///   - container: The `ContainerReference` whose context will be applied.
+///   - container: The container whose context will be applied.
 ///   - operation: A synchronous operation to execute within the container's context.
 /// - Returns: The result of the operation.
 /// - Throws: Any error thrown by the operation.
@@ -26,13 +35,23 @@ public func withContainer<T>(
     return try ServiceContext.withValue(context, operation: operation)
 }
 
-/// Executes an asynchronous operation within the context of the given container reference.
+/// Executes an asynchronous operation within the context of the given container.
 ///
-/// Use this function to reapply a containerized context to asynchronous tasks
-/// that would otherwise lose it, such as `Task.detached`.
+/// Use this function to reapply container context to asynchronous operations that
+/// would otherwise lose it, such as `Task.detached`:
+///
+/// ```swift
+/// let container = Container.current
+/// Task.detached {
+///     await withContainer(container) {
+///         let session = await Container.session()
+///     }
+/// }
+/// ```
 ///
 /// - Parameters:
-///   - container: The `ContainerReference` whose context will be applied.
+///   - container: The container whose context will be applied.
+///   - isolation: The actor isolation context.
 ///   - operation: An asynchronous operation to execute within the container's context.
 /// - Returns: The result of the operation.
 /// - Throws: Any error thrown by the operation.

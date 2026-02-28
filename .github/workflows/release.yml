@@ -1,0 +1,13 @@
+name: Release
+
+on:
+  release:
+    types: [ created ]
+
+jobs:
+  release-dependency-injection:
+    uses: ./.github/workflows/docc-release.yml
+    with:
+      target: ${{ 'DependencyInjection' }}
+    secrets:
+      TOKEN: ${{ secrets.TOKEN }}

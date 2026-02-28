@@ -6,7 +6,17 @@
 //
 import Foundation
 
+/// A protocol representing a dependency cache that can be cleared.
+///
+/// Caches are used by ``CachedScope`` and ``SharedScope`` to store resolved instances
+/// per container. Each container (including test containers) gets its own cache entry,
+/// ensuring test isolation.
+///
+/// Two built-in implementations are provided:
+/// - `StrongCache` -- retains the cached value indefinitely (used by ``CachedScope``)
+/// - `WeakCache` -- holds a weak reference that allows deallocation (used by ``SharedScope``)
 public protocol Cache: Sendable {
+    /// Removes the cached value for the current container.
     func clear()
 }
 

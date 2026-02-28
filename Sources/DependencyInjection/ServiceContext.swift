@@ -16,13 +16,25 @@ extension ServiceContext {
 
 extension Container {
     static let `default` = Container()
-    
-    /// A reference to a the currently in-use container, useful for
-    /// propagation of contextual data across asynchronous boundaries.
+
+    /// The container in the current async context.
     ///
-    /// `ContainerReference` is particularly useful in cases where tasks lose their
-    /// context (e.g., when using `Task.detached`). It provides a mechanism to
-    /// explicitly pass and reapply a `Container` to such tasks.
+    /// This property reads the container from Swift's `ServiceContext`, which
+    /// propagates automatically through structured concurrency (child tasks,
+    /// task groups, etc.). If no container has been set, it returns the global
+    /// default container.
+    ///
+    /// `Container.current` is particularly useful when you need to capture and
+    /// re-apply container context to detached tasks:
+    ///
+    /// ```swift
+    /// let container = Container.current
+    /// Task.detached {
+    ///     withContainer(container) {
+    ///         // Container.current is restored
+    ///     }
+    /// }
+    /// ```
     public static var current: Container {
         ServiceContext.inUse.container
     }
@@ -42,12 +54,41 @@ extension ServiceContext {
     }
 }
 
+/// Creates a child container and executes a synchronous operation within it.
+///
+/// The child container inherits all registrations from its parent but can override
+/// them independently. When the operation completes, the child container is discarded.
+///
+/// ```swift
+/// Container.logger.register { ConsoleLogger() }
+///
+/// withNestedContainer {
+///     Container.logger.register { FileLogger() }
+///     Container.logger() // -> FileLogger
+/// }
+///
+/// Container.logger() // -> ConsoleLogger (parent unaffected)
+/// ```
+///
+/// - Parameter operation: The operation to execute in the child container context.
+/// - Returns: The result of the operation.
+/// - Throws: Any error thrown by the operation.
 public func withNestedContainer<T>(operation: () throws -> T) rethrows -> T {
     var context = ServiceContext.inUse
     context.container = Container(parent: Container.current)
     return try ServiceContext.withValue(context, operation: operation)
 }
 
+/// Creates a child container and executes an asynchronous operation within it.
+///
+/// The child container inherits all registrations from its parent but can override
+/// them independently. When the operation completes, the child container is discarded.
+///
+/// - Parameters:
+///   - isolation: The actor isolation context.
+///   - operation: The async operation to execute in the child container context.
+/// - Returns: The result of the operation.
+/// - Throws: Any error thrown by the operation.
 public func withNestedContainer<T>(isolation: isolated(any Actor)? = #isolation, operation: () async throws -> T) async rethrows -> T {
     var context = ServiceContext.inUse
     context.container = Container(parent: Container.current)
