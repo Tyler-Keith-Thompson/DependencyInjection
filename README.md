@@ -583,4 +583,6 @@ When you call `factory.register(...)` on a factory with `.cached` or `.shared` s
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+Apache 2.0. See [LICENSE](LICENSE).
+
+`Sources/DispatchInterpose/simple_rebind.c` is derived from [fishhook](https://github.com/facebook/fishhook) and keeps its BSD 3-clause notice.
