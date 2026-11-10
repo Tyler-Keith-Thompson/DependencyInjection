@@ -26,11 +26,9 @@ extension Macro {
         let name = identifierPattern.identifier.text
         let privateName = "_" + name
         let projectedName = "$" + name
-        let type = typeAnnotation.type.description.trimmingCharacters(in: .whitespacesAndNewlines)
         let factoryExpr = try factoryExpression(from: node)
 
-        // Get the factory type from @Injected<...>(...)
-        let innerType = innerTypeForFactory(declaredType: type)
+        let innerType = dependencyType(fromDeclaredType: typeAnnotation.type, factoryType: factoryType)
         let projectedType = "\(factoryType)<\(innerType)>"
         let modifiers = varDecl.modifiers.map { $0.description.trimmingCharacters(in: .whitespacesAndNewlines) }
         let modifiersExcludingAccess = modifiers.filter {
@@ -57,15 +55,44 @@ extension Macro {
         return first.expression.description.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    static func innerTypeForFactory(declaredType: String) -> String {
-        guard let genericStart = declaredType.firstIndex(of: "<"),
-              let genericEnd = declaredType.lastIndex(of: ">") else {
-            return declaredType
+    /// The dependency type `T` for the projected `$property: <Factory><T>`.
+    ///
+    /// Only the wrapper the factory kind actually uses is unwrapped:
+    /// - `SyncFactory`: the declared type is `T` itself, even when `T` is generic (`AnyClock<Duration>`).
+    /// - `SyncThrowingFactory`: the declared type is `Result<T, any Error>`.
+    /// - `AsyncFactory` / `AsyncThrowingFactory`: the declared type is `Task<T, Never>` / `Task<T, any Error>`.
+    ///
+    /// If the declared type is not the expected wrapper it is returned unchanged, and the resolver's
+    /// initializer reports the mismatch.
+    static func dependencyType(fromDeclaredType declaredType: TypeSyntax, factoryType: String) -> String {
+        let trimmedDeclaredType = declaredType.trimmedDescription
+        let wrapperNames: Set<String>
+        switch factoryType {
+        case "SyncThrowingFactory":
+            wrapperNames = ["Result", "Swift.Result"]
+        case "AsyncFactory", "AsyncThrowingFactory":
+            wrapperNames = ["Task", "_Concurrency.Task"]
+        default:
+            return trimmedDeclaredType
         }
+        return firstGenericArgument(of: declaredType, ifNamedOneOf: wrapperNames) ?? trimmedDeclaredType
+    }
 
-        let inner = declaredType[declaredType.index(after: genericStart)..<genericEnd]
-        return inner.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: true)
-            .first?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? declaredType
+    /// The first generic argument of `type` (for example `Dictionary<String, Int>` in
+    /// `Result<Dictionary<String, Int>, any Error>`) when `type`'s name is one of `names`.
+    private static func firstGenericArgument(of type: TypeSyntax, ifNamedOneOf names: Set<String>) -> String? {
+        let name: String
+        let genericArguments: GenericArgumentClauseSyntax?
+        if let identifier = type.as(IdentifierTypeSyntax.self) {
+            name = identifier.name.text
+            genericArguments = identifier.genericArgumentClause
+        } else if let member = type.as(MemberTypeSyntax.self) {
+            name = "\(member.baseType.trimmedDescription).\(member.name.text)"
+            genericArguments = member.genericArgumentClause
+        } else {
+            return nil
+        }
+        guard names.contains(name), let first = genericArguments?.arguments.first else { return nil }
+        return first.argument.trimmedDescription
     }
 }
