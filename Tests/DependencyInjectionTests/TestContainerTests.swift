@@ -595,6 +595,149 @@ struct TestContainerTests {
         _ = await (testA, testB)
     }
     
+    @Test func useProductionRespectsCachedScope_Sync() async throws {
+        class MyDep { }
+        let factory = Factory(scope: .cached) { MyDep() }
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.useProduction()
+            #expect(factory() === factory())
+        }
+    }
+
+    @Test func useProductionRespectsCachedScope_SyncThrowing() async throws {
+        class MyDep { }
+        let factory = Factory(scope: .cached) { () throws -> MyDep in MyDep() }
+
+        try withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.useProduction()
+            let first = try factory()
+            let second = try factory()
+            #expect(first === second)
+        }
+    }
+
+    @Test func useProductionRespectsCachedScope_Async() async throws {
+        final class MyDep: Sendable { }
+        let factory = Factory(scope: .cached) { @Sendable () async -> MyDep in MyDep() }
+
+        await withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.useProduction()
+            let first = await factory()
+            let second = await factory()
+            #expect(first === second)
+        }
+    }
+
+    @Test func useProductionRespectsCachedScope_AsyncThrowing() async throws {
+        final class MyDep: Sendable { }
+        let factory = Factory(scope: .cached) { @Sendable () async throws -> MyDep in MyDep() }
+
+        try await withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.useProduction()
+            let first = try await factory()
+            let second = try await factory()
+            #expect(first === second)
+        }
+    }
+
+    @Test func useProductionRespectsSharedScope() async throws {
+        class MyDep { }
+        let factory = Factory(scope: .shared) { MyDep() }
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.useProduction()
+            let held = factory()
+            #expect(factory() === held)
+        }
+    }
+
+    // Run many sequential containers so a freed container's address is very likely reused;
+    // caches must not hand a new container the previous one's cached value.
+    @Test func useProductionCachedInstanceDoesNotLeakAcrossTestContainers() async throws {
+        class MyDep { }
+        let factory = Factory(scope: .cached) { MyDep() }
+
+        var previous: ObjectIdentifier?
+        for _ in 0..<50 {
+            let current = withTestContainer(unregisteredBehavior: failTestBehavior) {
+                factory.useProduction()
+                return ObjectIdentifier(factory())
+            }
+            #expect(current != previous)
+            previous = current
+        }
+    }
+
+    @Test func cachedScopeDoesNotLeakAcrossTestContainers_whenNotReRegistering() async throws {
+        class MyDep { }
+        let factory = Factory(scope: .cached) { MyDep() }
+        let leaked = MyDep()
+
+        _ = withTestContainer(unregisteredBehavior: failTestBehavior) {
+            factory.register { leaked }
+            return factory()
+        }
+
+        for _ in 0..<50 {
+            withTestContainer(unregisteredBehavior: failTestBehavior) {
+                factory.useProduction()
+                #expect(factory() !== leaked)
+            }
+        }
+    }
+
+    @Test func unregisteredCustomBehaviorFallbackRespectsCachedScope() async throws {
+        class MyDep { }
+        let factory = Factory(scope: .cached) { MyDep() }
+
+        withTestContainer(unregisteredBehavior: .custom { _ in }) {
+            #expect(factory() === factory())
+        }
+    }
+
+    @Test func unregisteredCustomBehaviorFallbackRespectsCachedScope_AsyncThrowing() async throws {
+        final class MyDep: Sendable { }
+        let factory = Factory(scope: .cached) { @Sendable () async throws -> MyDep in MyDep() }
+
+        try await withTestContainer(unregisteredBehavior: .custom { _ in }) {
+            let first = try await factory()
+            let second = try await factory()
+            #expect(first === second)
+        }
+    }
+
+    struct AlwaysUseProductionOnLeak: LeakedResolutionBehavior {
+        func onLeak<D>(factory: SyncFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) -> LeakedResolutionStrategy<D> { .useProductionValue }
+        func onLeak<D>(factory: SyncThrowingFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) throws -> LeakedResolutionStrategy<D> { .useProductionValue }
+        func onLeak<D>(factory: AsyncFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) async -> LeakedResolutionStrategy<D> { .useProductionValue }
+        func onLeak<D>(factory: AsyncThrowingFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) async throws -> LeakedResolutionStrategy<D> { .useProductionValue }
+    }
+
+    @Test func leakedResolutionUseProductionValueRespectsCachedScope() async throws {
+        class MyDep { }
+        let factory = Factory(scope: .cached) { MyDep() }
+        let behavior = AlwaysUseProductionOnLeak()
+
+        withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let first = behavior.resolve(factory: factory, testContainerFile: #file, testContainerLine: #line, testContainerFunction: #function)
+            let second = behavior.resolve(factory: factory, testContainerFile: #file, testContainerLine: #line, testContainerFunction: #function)
+            #expect(first === second)
+        }
+    }
+
+    @Test func leakedResolutionUseProductionValueRespectsCachedScope_Async() async throws {
+        final class MyDep: Sendable { }
+        let factory = Factory(scope: .cached) { @Sendable () async -> MyDep in MyDep() }
+        let behavior = AlwaysUseProductionOnLeak()
+
+        await withTestContainer(unregisteredBehavior: failTestBehavior) {
+            let first = await behavior.resolve(factory: factory, testContainerFile: #file, testContainerLine: #line, testContainerFunction: #function)
+            let second = await behavior.resolve(factory: factory, testContainerFile: #file, testContainerLine: #line, testContainerFunction: #function)
+            #expect(first === second)
+        }
+    }
+
     @Test func testContainerHasOptionalDefaults() async throws {
         withTestContainer(defaults: .libraryDefaults) {
             #expect(Container.prodService() is NoopProdService) // does not crash

@@ -37,6 +37,8 @@ import Atomics
 ///
 /// Containers form a hierarchy via ``withNestedContainer(operation:)-7glsq``. Child containers
 /// inherit registrations from their parent but can override them independently.
+private let _nextContainerID = ManagedAtomic<UInt64>(0)
+
 public class Container: @unchecked Sendable {
     private let lock = NSRecursiveLock()
     private var storage = [AnyHashable: StorageBase]()
@@ -47,6 +49,14 @@ public class Container: @unchecked Sendable {
     }
 
     var parent: Container?
+
+    /// A process-unique, never-reused identifier for this container.
+    ///
+    /// Caches key their entries by this rather than `ObjectIdentifier(container)`, because
+    /// a deallocated container's address can be reused by a new one, which would let the new
+    /// container read the old one's cached values.
+    let id: UInt64 = _nextContainerID.wrappingIncrementThenLoad(ordering: .relaxed)
+
     init(parent: Container? = nil) {
         self.parent = parent
     }

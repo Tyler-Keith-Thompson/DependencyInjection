@@ -42,7 +42,7 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: SyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return factory.resolver() }
+        guard storage?.useProduction != true else { return factory.scope.resolve(resolver: factory.resolver) }
         if let registered = storage?.syncRegistrations.currentResolver() {
             return factory.scope.resolve(resolver: registered)
         }
@@ -59,12 +59,12 @@ final class TestContainer: Container, @unchecked Sendable {
         case .custom(let action):
             action("\(factory)")
         }
-        return factory.resolver()
+        return factory.scope.resolve(resolver: factory.resolver)
     }
 
     override func resolve<D>(factory: SyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) throws -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return try factory.resolver() }
+        guard storage?.useProduction != true else { return try factory.scope.resolve(resolver: factory.resolver) }
         if let registered = storage?.syncThrowingRegistrations.currentResolver() {
             return try factory.scope.resolve(resolver: registered)
         }
@@ -81,12 +81,12 @@ final class TestContainer: Container, @unchecked Sendable {
         case .custom(let action):
             action("\(factory)")
         }
-        return try factory.resolver()
+        return try factory.scope.resolve(resolver: factory.resolver)
     }
 
     override func resolve<D>(factory: AsyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return await factory.resolver() }
+        guard storage?.useProduction != true else { return await factory.scope.resolve(resolver: factory.resolver) }
         if let registered = storage?.asyncRegistrations.currentResolver() {
             return await factory.scope.resolve(resolver: registered)
         }
@@ -103,12 +103,12 @@ final class TestContainer: Container, @unchecked Sendable {
         case .custom(let action):
             action("\(factory)")
         }
-        return await factory.resolver()
+        return await factory.scope.resolve(resolver: factory.resolver)
     }
 
     override func resolve<D>(factory: AsyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async throws -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return try await factory.resolver() }
+        guard storage?.useProduction != true else { return try await factory.scope.resolve(resolver: factory.resolver) }
         if let registered = storage?.asyncThrowingRegistrations.currentResolver() {
             return try await factory.scope.resolve(resolver: registered)
         }
@@ -125,7 +125,7 @@ final class TestContainer: Container, @unchecked Sendable {
         case .custom(let action):
             action("\(factory)")
         }
-        return try await factory.resolver()
+        return try await factory.scope.resolve(resolver: factory.resolver)
     }
 
     override func addResolver<D>(for factory: SyncFactory<D>, resolver: @escaping SyncFactory<D>.Resolver) {
@@ -187,28 +187,28 @@ extension LeakedResolutionBehavior {
     func resolve<D>(factory: SyncFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) -> D {
         switch onLeak(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction) {
         case .returnValue(let value): return value
-        case .useProductionValue: return factory.resolver()
+        case .useProductionValue: return factory.scope.resolve(resolver: factory.resolver)
         }
     }
 
     func resolve<D>(factory: SyncThrowingFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) throws -> D {
         switch try onLeak(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction) {
         case .returnValue(let value): return value
-        case .useProductionValue: return try factory.resolver()
+        case .useProductionValue: return try factory.scope.resolve(resolver: factory.resolver)
         }
     }
 
     func resolve<D>(factory: AsyncFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) async -> D {
         switch await onLeak(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction) {
         case .returnValue(let value): return value
-        case .useProductionValue: return await factory.resolver()
+        case .useProductionValue: return await factory.scope.resolve(resolver: factory.resolver)
         }
     }
 
     func resolve<D>(factory: AsyncThrowingFactory<D>, testContainerFile: String, testContainerLine: UInt, testContainerFunction: String) async throws -> D {
         switch try await onLeak(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction) {
         case .returnValue(let value): return value
-        case .useProductionValue: return try await factory.resolver()
+        case .useProductionValue: return try await factory.scope.resolve(resolver: factory.resolver)
         }
     }
 }

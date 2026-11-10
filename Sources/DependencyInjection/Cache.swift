@@ -50,10 +50,10 @@ final class StrongCache: Cache, _Cache, @unchecked Sendable {
     }
 
     private var lock = NSRecursiveLock()
-    private var storage = [ObjectIdentifier: Entry]()
+    private var storage = [UInt64: Entry]()
 
     private func entry(for container: Container) -> Entry {
-        let id = ObjectIdentifier(container)
+        let id = container.id
         if let e = storage[id] { return e }
         let e = Entry()
         storage[id] = e
@@ -67,7 +67,7 @@ final class StrongCache: Cache, _Cache, @unchecked Sendable {
         // Allow parent fallback except when running under a TestContainer
         let allowParents = !(container is TestContainer)
         while let c = container {
-            let id = ObjectIdentifier(c)
+            let id = c.id
             if let e = storage[id], e.hasValue { return e }
             if allowParents {
                 container = c.parent
@@ -115,10 +115,10 @@ final class WeakCache: Cache, _Cache, @unchecked Sendable {
     }
 
     private var lock = NSRecursiveLock()
-    private var storage = [ObjectIdentifier: Entry]()
+    private var storage = [UInt64: Entry]()
 
     private func entry(for container: Container) -> Entry {
-        let id = ObjectIdentifier(container)
+        let id = container.id
         if let e = storage[id] { return e }
         let e = Entry()
         storage[id] = e
@@ -131,7 +131,7 @@ final class WeakCache: Cache, _Cache, @unchecked Sendable {
         var container: Container? = currentContainer()
         let allowParents = !(container is TestContainer)
         while let c = container {
-            let id = ObjectIdentifier(c)
+            let id = c.id
             if let e = storage[id], e.value != nil { return e }
             if allowParents {
                 container = c.parent
