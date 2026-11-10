@@ -37,8 +37,6 @@ import Atomics
 ///
 /// Containers form a hierarchy via ``withNestedContainer(operation:)-7glsq``. Child containers
 /// inherit registrations from their parent but can override them independently.
-private let _nextContainerID = ManagedAtomic<UInt64>(0)
-
 public class Container: @unchecked Sendable {
     private let lock = NSRecursiveLock()
     private var storage = [AnyHashable: StorageBase]()
@@ -50,15 +48,29 @@ public class Container: @unchecked Sendable {
 
     var parent: Container?
 
-    /// A process-unique, never-reused identifier for this container.
-    ///
-    /// Caches key their entries by this rather than `ObjectIdentifier(container)`, because
-    /// a deallocated container's address can be reused by a new one, which would let the new
-    /// container read the old one's cached values.
-    let id: UInt64 = _nextContainerID.wrappingIncrementThenLoad(ordering: .relaxed)
+    private let cacheTrackingLock = NSLock()
+    private var cachesWithEntries = [ObjectIdentifier: WeakContainerCache]()
 
     init(parent: Container? = nil) {
         self.parent = parent
+    }
+
+    deinit {
+        // Caches key entries by this container's address. Remove them before the memory is
+        // freed, or a new container allocated at the same address would read them.
+        // Nothing else can reach this container now, so no cache can add a new entry for it.
+        let id = ObjectIdentifier(self)
+        for tracked in cachesWithEntries.values {
+            tracked.cache?.removeEntry(for: id)
+        }
+    }
+
+    /// Called by a cache when it creates an entry for this container, so the entry is
+    /// removed when the container is deallocated.
+    func trackCacheEntry(in cache: any ContainerScopedCache) {
+        cacheTrackingLock.lock()
+        defer { cacheTrackingLock.unlock() }
+        cachesWithEntries[ObjectIdentifier(cache)] = WeakContainerCache(cache: cache)
     }
 
     func storage<F: _Factory>(for factory: F) -> Storage<F>? {

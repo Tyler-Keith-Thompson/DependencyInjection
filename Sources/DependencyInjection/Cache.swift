@@ -34,6 +34,16 @@ extension Cache {
     }
 }
 
+/// A cache that stores one entry per container and can drop the entry for a
+/// deallocated container.
+protocol ContainerScopedCache: AnyObject {
+    func removeEntry(for id: ObjectIdentifier)
+}
+
+struct WeakContainerCache {
+    weak var cache: (any ContainerScopedCache)?
+}
+
 protocol _Cache {
     var hasValue: Bool { get }
 
@@ -43,21 +53,38 @@ protocol _Cache {
 }
 
 @available(iOS 13.0, macOS 10.15, tvOS 14.0, watchOS 7.0, *)
-final class StrongCache: Cache, _Cache, @unchecked Sendable {
+final class StrongCache: Cache, _Cache, ContainerScopedCache, @unchecked Sendable {
     private final class Entry {
         var registeredValue: Any?
         var hasValue: Bool = false
     }
 
     private var lock = NSRecursiveLock()
-    private var storage = [UInt64: Entry]()
+    private var storage = [ObjectIdentifier: Entry]()
 
     private func entry(for container: Container) -> Entry {
-        let id = container.id
+        let id = ObjectIdentifier(container)
         if let e = storage[id] { return e }
         let e = Entry()
         storage[id] = e
+        container.trackCacheEntry(in: self)
         return e
+    }
+
+    /// The number of containers this cache currently holds entries for.
+    var entryCount: Int {
+        defer { lock.unlock() }
+        lock.lock()
+        return storage.count
+    }
+
+    func removeEntry(for id: ObjectIdentifier) {
+        lock.lock()
+        let removed = storage.removeValue(forKey: id)
+        lock.unlock()
+        // Release the cached value outside the lock; its deinit may free other
+        // containers, which call back into this cache.
+        _ = removed
     }
 
     private func currentContainer() -> Container { Container.current }
@@ -67,7 +94,7 @@ final class StrongCache: Cache, _Cache, @unchecked Sendable {
         // Allow parent fallback except when running under a TestContainer
         let allowParents = !(container is TestContainer)
         while let c = container {
-            let id = c.id
+            let id = ObjectIdentifier(c)
             if let e = storage[id], e.hasValue { return e }
             if allowParents {
                 container = c.parent
@@ -109,20 +136,37 @@ final class StrongCache: Cache, _Cache, @unchecked Sendable {
 }
 
 @available(iOS 13.0, macOS 10.15, tvOS 14.0, watchOS 7.0, *)
-final class WeakCache: Cache, _Cache, @unchecked Sendable {
+final class WeakCache: Cache, _Cache, ContainerScopedCache, @unchecked Sendable {
     private final class Entry {
         weak var value: AnyObject?
     }
 
     private var lock = NSRecursiveLock()
-    private var storage = [UInt64: Entry]()
+    private var storage = [ObjectIdentifier: Entry]()
 
     private func entry(for container: Container) -> Entry {
-        let id = container.id
+        let id = ObjectIdentifier(container)
         if let e = storage[id] { return e }
         let e = Entry()
         storage[id] = e
+        container.trackCacheEntry(in: self)
         return e
+    }
+
+    /// The number of containers this cache currently holds entries for.
+    var entryCount: Int {
+        defer { lock.unlock() }
+        lock.lock()
+        return storage.count
+    }
+
+    func removeEntry(for id: ObjectIdentifier) {
+        lock.lock()
+        let removed = storage.removeValue(forKey: id)
+        lock.unlock()
+        // Release the cached value outside the lock; its deinit may free other
+        // containers, which call back into this cache.
+        _ = removed
     }
 
     private func currentContainer() -> Container { Container.current }
@@ -131,7 +175,7 @@ final class WeakCache: Cache, _Cache, @unchecked Sendable {
         var container: Container? = currentContainer()
         let allowParents = !(container is TestContainer)
         while let c = container {
-            let id = c.id
+            let id = ObjectIdentifier(c)
             if let e = storage[id], e.value != nil { return e }
             if allowParents {
                 container = c.parent

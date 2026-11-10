@@ -99,7 +99,7 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     /// The strong cache backing this scope.
     public let cache: any Cache = StrongCache()
-    private var taskStorage = [UInt64: Any]()
+    private var taskStorage = [ObjectIdentifier: Any]()
 
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
         lock.protect {
@@ -127,7 +127,7 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        let containerId = Container.current.id
+        let containerId = ObjectIdentifier(Container.current)
         if let task = lock.protect({ self.taskStorage[containerId] }) as? Task<D, Never> {
             return await task.value
         }
@@ -149,7 +149,7 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        let containerId = Container.current.id
+        let containerId = ObjectIdentifier(Container.current)
         if let task = lock.protect({ self.taskStorage[containerId] }) as? Task<D, any Error> {
             return try await task.value
         }
@@ -179,7 +179,7 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     /// The weak cache backing this scope.
     public let cache: any Cache = WeakCache()
-    private var taskStorage = [UInt64: Any]()
+    private var taskStorage = [ObjectIdentifier: Any]()
 
     override func resolve<D>(resolver: @escaping SyncFactory<D>.Resolver) -> D {
         lock.protect {
@@ -207,7 +207,7 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        let containerId = Container.current.id
+        let containerId = ObjectIdentifier(Container.current)
         if let task = lock.protect({ self.taskStorage[containerId] }) as? Task<D, Never> {
             return await task.value
         }
@@ -229,7 +229,7 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
         if cache.hasValue, let result = cache() as? D {
             return result
         }
-        let containerId = Container.current.id
+        let containerId = ObjectIdentifier(Container.current)
         if let task = lock.protect({ self.taskStorage[containerId] }) as? Task<D, any Error> {
             return try await task.value
         }

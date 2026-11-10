@@ -658,13 +658,15 @@ struct TestContainerTests {
         class MyDep { }
         let factory = Factory(scope: .cached) { MyDep() }
 
-        var previous: ObjectIdentifier?
+        // Keep the instances alive: comparing addresses of freed objects would itself be
+        // fooled by address reuse.
+        var previous: MyDep?
         for _ in 0..<50 {
             let current = withTestContainer(unregisteredBehavior: failTestBehavior) {
                 factory.useProduction()
-                return ObjectIdentifier(factory())
+                return factory()
             }
-            #expect(current != previous)
+            #expect(current !== previous)
             previous = current
         }
     }
@@ -685,6 +687,30 @@ struct TestContainerTests {
                 #expect(factory() !== leaked)
             }
         }
+    }
+
+    @Test func cacheEntriesAreRemovedWhenContainerIsDeallocated() async throws {
+        class MyDep { }
+        let strong = CachedScope()
+        let weak = SharedScope()
+        let cachedFactory = Factory(scope: strong) { MyDep() }
+        let sharedFactory = Factory(scope: weak) { MyDep() }
+        let strongCache = try #require(strong.cache as? StrongCache)
+        let weakCache = try #require(weak.cache as? WeakCache)
+
+        for _ in 0..<10 {
+            withTestContainer(unregisteredBehavior: failTestBehavior) {
+                cachedFactory.useProduction()
+                sharedFactory.useProduction()
+                _ = cachedFactory()
+                _ = sharedFactory()
+                #expect(strongCache.entryCount == 1)
+                #expect(weakCache.entryCount == 1)
+            }
+        }
+
+        #expect(strongCache.entryCount == 0)
+        #expect(weakCache.entryCount == 0)
     }
 
     @Test func unregisteredCustomBehaviorFallbackRespectsCachedScope() async throws {
