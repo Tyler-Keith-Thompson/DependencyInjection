@@ -181,11 +181,17 @@ public class Container: @unchecked Sendable {
         setTestResolution(.parentContainer, on: factory)
     }
 
+    /// Sets the mode on the nearest test container at or above this one, since only test
+    /// containers read it. With no test container above, it does nothing.
     private func setTestResolution<F: _Factory>(_ resolution: TestResolution, on factory: F) {
-        guard let storage = storage(for: factory) else {
-            preconditionFailure("Factory not registered! That should've happened on factory init")
+        var container: Container? = self
+        while let current = container {
+            if let testContainer = current as? TestContainer {
+                testContainer.register(factory: factory).testResolution = resolution
+                return
+            }
+            container = current.parent
         }
-        storage.testResolution = resolution
     }
 }
 

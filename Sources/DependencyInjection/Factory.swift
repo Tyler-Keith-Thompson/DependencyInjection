@@ -111,8 +111,10 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
@@ -136,8 +138,10 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     /// }
     /// ```
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
@@ -205,8 +209,10 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
@@ -230,8 +236,10 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
     /// }
     /// ```
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
@@ -300,8 +308,10 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
@@ -325,8 +335,10 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
     /// }
     /// ```
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
@@ -394,8 +406,10 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
@@ -419,8 +433,10 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     /// }
     /// ```
     ///
-    /// Applies only to the current test container, takes precedence over its registrations, and
-    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// Applies only to the innermost test container enclosing the call, even when called from a
+    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// container's registrations and respects the factory's scope. With no enclosing test
+    /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
