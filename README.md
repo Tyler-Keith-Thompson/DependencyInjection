@@ -572,7 +572,7 @@ Caches (`StrongCache`, `WeakCache`) store entries **per container identity** (`O
 - Each `withTestContainer` block gets its own cache entries
 - Concurrent tests with `.cached` scope never share instances
 - In production, `Container.default` cache entries persist as expected
-- Inside a `TestContainer`, parent cache lookups are **disabled** to prevent test pollution
+- Cache lookups never go above a `TestContainer`, to prevent test pollution. A `withNestedContainer` inside a test reads values cached in itself, its parents and the test container, but nothing cached above the test container
 
 When you call `factory.register(...)` on a factory with `.cached` or `.shared` scope, the cache is automatically cleared so the next resolution uses the new resolver.
 

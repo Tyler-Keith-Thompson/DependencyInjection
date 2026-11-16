@@ -91,16 +91,15 @@ final class StrongCache: Cache, _Cache, ContainerScopedCache, @unchecked Sendabl
 
     private func searchEntryForRead() -> Entry? {
         var container: Container? = currentContainer()
-        // Allow parent fallback except when running under a TestContainer
-        let allowParents = !(container is TestContainer)
         while let c = container {
             let id = ObjectIdentifier(c)
             if let e = storage[id], e.hasValue { return e }
-            if allowParents {
-                container = c.parent
-            } else {
+            // A test container is the top of what a test may read: nested containers
+            // inside a test see its values, never ones cached above it.
+            if c is TestContainer {
                 break
             }
+            container = c.parent
         }
         return nil
     }
@@ -173,15 +172,15 @@ final class WeakCache: Cache, _Cache, ContainerScopedCache, @unchecked Sendable 
 
     private func searchEntryForRead() -> Entry? {
         var container: Container? = currentContainer()
-        let allowParents = !(container is TestContainer)
         while let c = container {
             let id = ObjectIdentifier(c)
             if let e = storage[id], e.value != nil { return e }
-            if allowParents {
-                container = c.parent
-            } else {
+            // A test container is the top of what a test may read: nested containers
+            // inside a test see its values, never ones cached above it.
+            if c is TestContainer {
                 break
             }
+            container = c.parent
         }
         return nil
     }
