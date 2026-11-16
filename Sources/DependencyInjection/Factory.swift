@@ -124,9 +124,11 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     }
 
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
-    /// resolves this factory the way the container enclosing the test container would: its
-    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
-    /// otherwise the production resolver.
+    /// resolves this factory with the registration of the container enclosing the test container
+    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
+    /// value is cached there rather than shared with the enclosing container, and the resolver's
+    /// own dependencies resolve in the test container.
     ///
     /// ```swift
     /// withNestedContainer {
@@ -222,9 +224,11 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
     }
 
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
-    /// resolves this factory the way the container enclosing the test container would: its
-    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
-    /// otherwise the production resolver.
+    /// resolves this factory with the registration of the container enclosing the test container
+    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
+    /// value is cached there rather than shared with the enclosing container, and the resolver's
+    /// own dependencies resolve in the test container.
     ///
     /// ```swift
     /// withNestedContainer {
@@ -321,9 +325,11 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
     }
 
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
-    /// resolves this factory the way the container enclosing the test container would: its
-    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
-    /// otherwise the production resolver.
+    /// resolves this factory with the registration of the container enclosing the test container
+    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
+    /// value is cached there rather than shared with the enclosing container, and the resolver's
+    /// own dependencies resolve in the test container.
     ///
     /// ```swift
     /// withNestedContainer {
@@ -419,9 +425,11 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     }
 
     /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
-    /// resolves this factory the way the container enclosing the test container would: its
-    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
-    /// otherwise the production resolver.
+    /// resolves this factory with the registration of the container enclosing the test container
+    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
+    /// value is cached there rather than shared with the enclosing container, and the resolver's
+    /// own dependencies resolve in the test container.
     ///
     /// ```swift
     /// withNestedContainer {

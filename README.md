@@ -324,7 +324,7 @@ Dependency cycle detected: CycleA depends on itself.
 
 Without this, a sync cycle overflows the stack and an async `.cached` or `.shared` cycle hangs. Release builds skip the check.
 
-Only resolutions that can never finish are reported: the same factory, in the same container, resolved again while its own resolution is still waiting on the result. That covers direct calls, sync and async, and the task a `.cached` or `.shared` scope awaits for an async resolver. A back-reference resolved from a `Task { }` the owner starts but doesn't wait on (including the ones `@ConstructorInjected` and `@LazyInjected` start for async factories) is not a cycle, and is not reported. Cycles through `async let`, task groups, or a `Task` the resolver awaits are not detected, because Swift can't tell those tasks apart from ones nobody waits on.
+Only resolutions that can never finish are reported: the same factory, in the same container, resolved again while its own resolution is still waiting on the result. That covers direct calls, sync and async, and the task a `.cached` or `.shared` scope awaits for an async resolver. A back-reference resolved from a `Task { }` the owner starts but doesn't wait on (including the ones `@ConstructorInjected` and `@LazyInjected` start for async factories) is not a cycle, and is not reported. Cycles through `async let`, task groups, or a `Task` the resolver awaits are not detected, because Swift can't tell those tasks apart from ones nobody waits on. Nor is an async `.cached` or `.shared` cycle that two callers enter at the same time from different factories (one resolving A→B while another resolves B→A): each scope's task carries only the chain of the caller that started it, so the two wait on each other and hang instead of being reported.
 
 If two types inject each other with macros, give their factories explicit types (`static let a: SyncFactory<A> = Factory { A() }`). Otherwise the compiler reports "circular reference expanding peer macros" before the code ever runs.
 
@@ -422,11 +422,11 @@ Inside a test container, two calls let a factory resolve without a test registra
 ```swift
 withTestContainer {
     Container.dateFormatter.useProduction()   // always the production resolver
-    Container.logger.useParentContainer()     // whatever the enclosing container resolves
+    Container.logger.useParentContainer()     // the enclosing container's registration
 }
 ```
 
-`useParentContainer()` is for registrations made outside the test container, such as a shared `withNestedContainer` set up around several tests. If nothing above the test container registers the factory, it falls back to production.
+`useParentContainer()` is for registrations made outside the test container, such as a shared `withNestedContainer` set up around several tests. It uses the enclosing container's *resolver*, not its instance: the resolver runs inside the test container, so a `.cached` or `.shared` value is cached in the test container (each test gets its own, not the one the enclosing container holds), and the resolver's own dependencies resolve in the test container too, which means they need test registrations or their own `useProduction()` / `useParentContainer()`. If nothing above the test container registers the factory, it falls back to production.
 
 ### Leaked resolution detection
 
@@ -597,7 +597,7 @@ When you call `factory.register(...)` on a factory with `.cached` or `.shared` s
 | `register(_:)` | Push a new resolver onto the current container's stack and clear scope cache |
 | `popRegistration()` | Remove the most recent resolver from the stack |
 | `useProduction()` | In the current test container, resolve with the production resolver (bypasses test overrides) |
-| `useParentContainer()` | In the current test container, resolve the way the enclosing container would: its registration, else production |
+| `useParentContainer()` | In the current test container, resolve with the enclosing container's registration (else production), run and cached in the test container |
 | `testValue(_:)` | Create a `FactoryDefault` for use with `TestDefault` / `TestDefaults` |
 
 ### `Container`

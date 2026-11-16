@@ -86,6 +86,12 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: SyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) -> D {
         let storage = storage(for: factory)
+        #if DEBUG
+        // A leaked resolve must trip leak detection even when the factory skips test doubles.
+        if let mode = storage?.testResolution, mode != .registrations, !executingTest {
+            return leakedResolutionBehavior.resolve(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction)
+        }
+        #endif
         switch storage?.testResolution {
         case .production?:
             return factory.scope.resolve(resolver: factory.resolver)
@@ -115,6 +121,12 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: SyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) throws -> D {
         let storage = storage(for: factory)
+        #if DEBUG
+        // A leaked resolve must trip leak detection even when the factory skips test doubles.
+        if let mode = storage?.testResolution, mode != .registrations, !executingTest {
+            return try leakedResolutionBehavior.resolve(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction)
+        }
+        #endif
         switch storage?.testResolution {
         case .production?:
             return try factory.scope.resolve(resolver: factory.resolver)
@@ -144,6 +156,12 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: AsyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async -> D {
         let storage = storage(for: factory)
+        #if DEBUG
+        // A leaked resolve must trip leak detection even when the factory skips test doubles.
+        if let mode = storage?.testResolution, mode != .registrations, !executingTest {
+            return await leakedResolutionBehavior.resolve(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction)
+        }
+        #endif
         switch storage?.testResolution {
         case .production?:
             return await factory.scope.resolve(resolver: factory.resolver)
@@ -173,6 +191,12 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: AsyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async throws -> D {
         let storage = storage(for: factory)
+        #if DEBUG
+        // A leaked resolve must trip leak detection even when the factory skips test doubles.
+        if let mode = storage?.testResolution, mode != .registrations, !executingTest {
+            return try await leakedResolutionBehavior.resolve(factory: factory, testContainerFile: testContainerFile, testContainerLine: testContainerLine, testContainerFunction: testContainerFunction)
+        }
+        #endif
         switch storage?.testResolution {
         case .production?:
             return try await factory.scope.resolve(resolver: factory.resolver)
@@ -475,6 +499,11 @@ public func withTestContainer<T>(defaults: TestDefaults? = nil,
     swift_async_hooks_install()
     var context = ServiceContext.inUse
 
+    // Listed before the crash turns on and removed after it turns off (defers run in reverse),
+    // so a resolve that crashes always sees this container in the message.
+    let openContainerID = OpenTestContainers.open(file: file, line: line, function: function)
+    defer { OpenTestContainers.close(openContainerID) }
+
     // Atomic reference counting solution to fix race condition
     let refCount = _fatalErrorOnResolveRefCount.wrappingIncrementThenLoad(ordering: .sequentiallyConsistent)
     if refCount == 1 {
@@ -492,9 +521,6 @@ public func withTestContainer<T>(defaults: TestDefaults? = nil,
             _fatalErrorOnResolveValueSaved.store(false, ordering: .sequentiallyConsistent)
         }
     }
-
-    let openContainerID = OpenTestContainers.open(file: file, line: line, function: function)
-    defer { OpenTestContainers.close(openContainerID) }
 
     let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
@@ -544,6 +570,11 @@ public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
     swift_async_hooks_install()
     var context = ServiceContext.inUse
 
+    // Listed before the crash turns on and removed after it turns off (defers run in reverse),
+    // so a resolve that crashes always sees this container in the message.
+    let openContainerID = OpenTestContainers.open(file: file, line: line, function: function)
+    defer { OpenTestContainers.close(openContainerID) }
+
     // Atomic reference counting solution to fix race condition
     let refCount = _fatalErrorOnResolveRefCount.wrappingIncrementThenLoad(ordering: .sequentiallyConsistent)
     if refCount == 1 {
@@ -561,9 +592,6 @@ public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
             _fatalErrorOnResolveValueSaved.store(false, ordering: .sequentiallyConsistent)
         }
     }
-
-    let openContainerID = OpenTestContainers.open(file: file, line: line, function: function)
-    defer { OpenTestContainers.close(openContainerID) }
 
     let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
