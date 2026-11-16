@@ -132,8 +132,9 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
             return await task.value
         }
         defer { lock.protect { self.taskStorage[containerId] = nil } }
+        let waiting = CycleDetection.handOff()
         let task = Task { [weak self] in
-            let resolved = await resolver()
+            let resolved = await CycleDetection.adopting(waiting) { await resolver() }
             if let self {
                 self.lock.protect {
                     self.cache.register(resolved)
@@ -154,8 +155,9 @@ public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
             return try await task.value
         }
         defer { lock.protect { self.taskStorage[containerId] = nil } }
+        let waiting = CycleDetection.handOff()
         let task = Task { [weak self] in
-            let resolved = try await resolver()
+            let resolved = try await CycleDetection.adopting(waiting) { try await resolver() }
             if let self {
                 self.lock.protect {
                     self.cache.register(resolved)
@@ -212,8 +214,9 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
             return await task.value
         }
         defer { lock.protect { self.taskStorage[containerId] = nil } }
+        let waiting = CycleDetection.handOff()
         let task = Task { [weak self] in
-            let resolved = await resolver()
+            let resolved = await CycleDetection.adopting(waiting) { await resolver() }
             if let self {
                 self.lock.protect {
                     self.cache.register(resolved)
@@ -234,8 +237,9 @@ public final class SharedScope: Scope, ScopeWithCache, @unchecked Sendable {
             return try await task.value
         }
         defer { lock.protect { self.taskStorage[containerId] = nil } }
+        let waiting = CycleDetection.handOff()
         let task = Task { [weak self] in
-            let resolved = try await resolver()
+            let resolved = try await CycleDetection.adopting(waiting) { try await resolver() }
             if let self {
                 self.lock.protect {
                     self.cache.register(resolved)

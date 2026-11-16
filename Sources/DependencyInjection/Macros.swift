@@ -118,6 +118,11 @@ public macro ConstructorInjected<T>(_ factory: AsyncThrowingFactory<T>) = #exter
 /// Unlike ``Injected(_:)-swift.macro``, the resolver is not called until the property is
 /// first read. After that, the cached value is returned on subsequent reads (thread-safe).
 ///
+/// The first read resolves in whatever `Container.current` is at that read, not the container
+/// the object was created in. If the object may be first read outside the context that created
+/// it, use ``ConstructorInjected(_:)-swift.macro`` or do the first read inside
+/// `withContainer(_:operation:)`.
+///
 /// ```swift
 /// class ReportGenerator {
 ///     @LazyInjected(Container.formatter) var formatter: DateFormatter
@@ -130,6 +135,7 @@ public macro ConstructorInjected<T>(_ factory: AsyncThrowingFactory<T>) = #exter
 public macro LazyInjected<T>(_ factory: SyncFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "LazyInjectedSyncMacro")
 
 /// Lazy injects from a throwing factory. Wrapped value is `Result<T, any Error>`.
+/// Resolves on first read, in whatever `Container.current` is at that read.
 ///
 /// - Parameter factory: The ``SyncThrowingFactory`` to resolve from.
 @attached(accessor)
@@ -137,7 +143,8 @@ public macro LazyInjected<T>(_ factory: SyncFactory<T>) = #externalMacro(module:
 public macro LazyInjected<T>(_ factory: SyncThrowingFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "LazyInjectedSyncThrowingMacro")
 
 /// Lazy injects from an async factory. Wrapped value is `Task<T, Never>`.
-/// The async task starts eagerly, but the result is cached on first read.
+/// The async task starts at init, so it resolves in the container that created the object;
+/// the first read only stores the task. The task is cancelled in `deinit`.
 ///
 /// - Parameter factory: The ``AsyncFactory`` to resolve from.
 @attached(accessor)
@@ -145,6 +152,8 @@ public macro LazyInjected<T>(_ factory: SyncThrowingFactory<T>) = #externalMacro
 public macro LazyInjected<T>(_ factory: AsyncFactory<T>) = #externalMacro(module: "DependencyInjectionMacros", type: "LazyInjectedAsyncMacro")
 
 /// Lazy injects from an async throwing factory. Wrapped value is `Task<T, any Error>`.
+/// The async task starts at init, so it resolves in the container that created the object;
+/// the first read only stores the task. The task is cancelled in `deinit`.
 ///
 /// - Parameter factory: The ``AsyncThrowingFactory`` to resolve from.
 @attached(accessor)

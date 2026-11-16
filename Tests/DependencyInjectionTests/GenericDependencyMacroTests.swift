@@ -82,18 +82,19 @@ struct GenericDependencyMacroTests {
 
     @Test func lazyInjectedProjectsFactoryOfGenericDependencyType() async throws {
         try await withTestContainer {
-            let example = LazyInjectedExample()
-            let sync: SyncFactory<GenericBox<Int>> = example.$sync
-            let syncThrowing: SyncThrowingFactory<GenericBox<Int>> = example.$syncThrowing
-            let async: AsyncFactory<GenericBox<Int>> = example.$async
-            let asyncThrowing: AsyncThrowingFactory<GenericBox<Int>> = example.$asyncThrowing
-            let dictionary: SyncThrowingFactory<Dictionary<String, Int>> = example.$dictionary
+            // @LazyInjected starts async work when the owner is created, so register first.
+            Container.genericSync.register { GenericBox(2) }
+            Container.genericSyncThrowing.register { GenericBox(3) }
+            Container.genericAsync.register { GenericBox(4) }
+            Container.genericAsyncThrowing.register { GenericBox(5) }
+            Container.dictionarySyncThrowing.register { ["b": 2] }
 
-            sync.register { GenericBox(2) }
-            syncThrowing.register { GenericBox(3) }
-            async.register { GenericBox(4) }
-            asyncThrowing.register { GenericBox(5) }
-            dictionary.register { ["b": 2] }
+            let example = LazyInjectedExample()
+            let _: SyncFactory<GenericBox<Int>> = example.$sync
+            let _: SyncThrowingFactory<GenericBox<Int>> = example.$syncThrowing
+            let _: AsyncFactory<GenericBox<Int>> = example.$async
+            let _: AsyncThrowingFactory<GenericBox<Int>> = example.$asyncThrowing
+            let _: SyncThrowingFactory<Dictionary<String, Int>> = example.$dictionary
 
             #expect(example.sync.value == 2)
             let v6 = try example.syncThrowing.get().value

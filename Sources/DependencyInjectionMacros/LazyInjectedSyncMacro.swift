@@ -31,18 +31,6 @@ public struct LazyInjectedSyncMacro: PeerMacro, AccessorMacro {
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
-        guard let varDecl = declaration.as(VariableDeclSyntax.self),
-              varDecl.bindings.count == 1,
-              let binding = varDecl.bindings.first,
-              let identifierPattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-            return []
-        }
-
-        let name = identifierPattern.identifier.text
-        let privateName = "_" + name
-
-        return [
-            AccessorDeclSyntax("get { \(raw: privateName).wrappedValue }")
-        ]
+        generateInjectedPropertyAccessors(providingAccessorsOf: declaration)
     }
 }

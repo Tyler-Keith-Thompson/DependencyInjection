@@ -17,6 +17,7 @@ protocol _Factory: AnyObject, Hashable, Sendable {
     init(scope: Scope, resolver: Resolver)
 
     @discardableResult func useProduction() -> Self
+    @discardableResult func useParentContainer() -> Self
 }
 
 extension _Factory {
@@ -71,7 +72,9 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     ///
     /// - Returns: The resolved dependency.
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) -> Dependency {
-        Container.current.resolve(factory: self, file: file, line: line, function: function)
+        CycleDetection.resolving(self, file: file, line: line, function: function) {
+            Container.current.resolve(factory: self, file: file, line: line, function: function)
+        }
     }
 
     /// Pushes a new resolver onto the current container's registration stack for this factory.
@@ -105,14 +108,41 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
         return self
     }
 
-    /// Marks this factory to bypass test overrides and always use its default production resolver.
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// > Warning: This sets a global flag that persists across concurrent tests and can cause
-    /// > test interference. Prefer using ``register(_:)`` with explicit test doubles instead.
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
     @discardableResult public func useProduction() -> Self {
         Container.current.useProduction(on: self)
+        return self
+    }
+
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory the way the container enclosing the test container would: its
+    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
+    /// otherwise the production resolver.
+    ///
+    /// ```swift
+    /// withNestedContainer {
+    ///     Container.logger.register { ConsoleLogger() }
+    ///     withTestContainer {
+    ///         Container.logger.useParentContainer()
+    ///         Container.logger() // ConsoleLogger
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useProduction()`` afterwards replaces it.
+    ///
+    /// - Returns: `self` for chaining.
+    @discardableResult public func useParentContainer() -> Self {
+        Container.current.useParentContainer(on: self)
         return self
     }
 }
@@ -149,7 +179,9 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
     /// - Returns: The resolved dependency.
     /// - Throws: Any error thrown by the active resolver.
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) throws -> Dependency {
-        try Container.current.resolve(factory: self, file: file, line: line, function: function)
+        try CycleDetection.resolving(self, file: file, line: line, function: function) {
+            try Container.current.resolve(factory: self, file: file, line: line, function: function)
+        }
     }
 
     /// Pushes a new resolver onto the current container's registration stack.
@@ -170,14 +202,41 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
         return self
     }
 
-    /// Marks this factory to bypass test overrides and always use its default production resolver.
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// > Warning: This sets a global flag that persists across concurrent tests and can cause
-    /// > test interference. Prefer using ``register(_:)`` with explicit test doubles instead.
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
     @discardableResult public func useProduction() -> Self {
         Container.current.useProduction(on: self)
+        return self
+    }
+
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory the way the container enclosing the test container would: its
+    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
+    /// otherwise the production resolver.
+    ///
+    /// ```swift
+    /// withNestedContainer {
+    ///     Container.logger.register { ConsoleLogger() }
+    ///     withTestContainer {
+    ///         Container.logger.useParentContainer()
+    ///         Container.logger() // ConsoleLogger
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useProduction()`` afterwards replaces it.
+    ///
+    /// - Returns: `self` for chaining.
+    @discardableResult public func useParentContainer() -> Self {
+        Container.current.useParentContainer(on: self)
         return self
     }
 }
@@ -215,7 +274,9 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
     ///
     /// - Returns: The resolved dependency.
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) async -> Dependency {
-        await Container.current.resolve(factory: self, file: file, line: line, function: function)
+        await CycleDetection.resolving(self, file: file, line: line, function: function) {
+            await Container.current.resolve(factory: self, file: file, line: line, function: function)
+        }
     }
 
     /// Pushes a new resolver onto the current container's registration stack.
@@ -236,14 +297,41 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
         return self
     }
 
-    /// Marks this factory to bypass test overrides and always use its default production resolver.
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// > Warning: This sets a global flag that persists across concurrent tests and can cause
-    /// > test interference. Prefer using ``register(_:)`` with explicit test doubles instead.
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
     @discardableResult public func useProduction() -> Self {
         Container.current.useProduction(on: self)
+        return self
+    }
+
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory the way the container enclosing the test container would: its
+    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
+    /// otherwise the production resolver.
+    ///
+    /// ```swift
+    /// withNestedContainer {
+    ///     Container.logger.register { ConsoleLogger() }
+    ///     withTestContainer {
+    ///         Container.logger.useParentContainer()
+    ///         Container.logger() // ConsoleLogger
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useProduction()`` afterwards replaces it.
+    ///
+    /// - Returns: `self` for chaining.
+    @discardableResult public func useParentContainer() -> Self {
+        Container.current.useParentContainer(on: self)
         return self
     }
 }
@@ -280,7 +368,9 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     /// - Returns: The resolved dependency.
     /// - Throws: Any error thrown by the active resolver.
     public func callAsFunction(file: String = #file, line: UInt = #line, function: String = #function) async throws -> Dependency {
-        try await Container.current.resolve(factory: self, file: file, line: line, function: function)
+        try await CycleDetection.resolving(self, file: file, line: line, function: function) {
+            try await Container.current.resolve(factory: self, file: file, line: line, function: function)
+        }
     }
 
     /// Pushes a new resolver onto the current container's registration stack.
@@ -301,14 +391,41 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
         return self
     }
 
-    /// Marks this factory to bypass test overrides and always use its default production resolver.
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
-    /// > Warning: This sets a global flag that persists across concurrent tests and can cause
-    /// > test interference. Prefer using ``register(_:)`` with explicit test doubles instead.
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useParentContainer()`` afterwards replaces it.
     ///
     /// - Returns: `self` for chaining.
     @discardableResult public func useProduction() -> Self {
         Container.current.useProduction(on: self)
+        return self
+    }
+
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// resolves this factory the way the container enclosing the test container would: its
+    /// registration if there is one (for example from a surrounding ``withNestedContainer(operation:)-7glsq``),
+    /// otherwise the production resolver.
+    ///
+    /// ```swift
+    /// withNestedContainer {
+    ///     Container.logger.register { ConsoleLogger() }
+    ///     withTestContainer {
+    ///         Container.logger.useParentContainer()
+    ///         Container.logger() // ConsoleLogger
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Applies only to the current test container, takes precedence over its registrations, and
+    /// respects the factory's scope. Has no effect outside a test container. Calling
+    /// ``useProduction()`` afterwards replaces it.
+    ///
+    /// - Returns: `self` for chaining.
+    @discardableResult public func useParentContainer() -> Self {
+        Container.current.useParentContainer(on: self)
         return self
     }
 }

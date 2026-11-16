@@ -110,4 +110,43 @@ struct LazyInjectedTests {
             #expect(await test.count == 2)
         }
     }
+
+    @Test func lazyInjectedPropertyWrapper_WithAsyncFactory_CancelsTaskOnDeinit() async throws {
+        final class Example {
+            @LazyInjected(Container.exampleAsyncDependency) var dependency: Task<ExampleAsyncDependency, Never>
+        }
+
+        await withTestContainer {
+            Container.exampleAsyncDependency.register {
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                return await ExampleAsyncDependency()
+            }
+            var example: Example? = Example()
+            let task = example!.dependency
+            #expect(!task.isCancelled)
+            example = nil
+            #expect(task.isCancelled)
+            _ = await task.value
+        }
+    }
+
+    @Test func lazyInjectedPropertyWrapper_WithAsyncThrowingFactory_CancelsTaskOnDeinit() async throws {
+        final class Example {
+            @LazyInjected(Container.exampleAsyncThrowingDependency) var dependency: Task<ExampleAsyncThrowingDependency, any Error>
+        }
+
+        await withTestContainer {
+            Container.exampleAsyncThrowingDependency.register {
+                try await Task.sleep(nanoseconds: 10_000_000_000)
+                return try await ExampleAsyncThrowingDependency()
+            }
+            var example: Example? = Example()
+            let task = example!.dependency
+            #expect(!task.isCancelled)
+            example = nil
+            #expect(task.isCancelled)
+            let result = await task.result
+            #expect(throws: CancellationError.self) { try result.get() }
+        }
+    }
 }

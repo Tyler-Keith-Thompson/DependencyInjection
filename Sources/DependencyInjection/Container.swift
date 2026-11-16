@@ -79,7 +79,7 @@ public class Container: @unchecked Sendable {
 
     func resolve<D>(factory: SyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) -> D {
         if fatalErrorOnResolve && !hasTaskLocalContext {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
+            fatalError(resolvedOutsideContainerMessage(dependency: D.self, file: file, line: line, function: function))
         }
         if let currentResolver = storage(for: factory)?.syncRegistrations.currentResolver() {
             return factory.scope.resolve(resolver: currentResolver)
@@ -94,7 +94,7 @@ public class Container: @unchecked Sendable {
 
     func resolve<D>(factory: SyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) throws -> D {
         if fatalErrorOnResolve && !hasTaskLocalContext {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
+            fatalError(resolvedOutsideContainerMessage(dependency: D.self, file: file, line: line, function: function))
         }
         if let currentResolver = storage(for: factory)?.syncThrowingRegistrations.currentResolver() {
             return try factory.scope.resolve(resolver: currentResolver)
@@ -109,7 +109,7 @@ public class Container: @unchecked Sendable {
 
     func resolve<D>(factory: AsyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async -> D {
         if fatalErrorOnResolve && !hasTaskLocalContext {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
+            fatalError(resolvedOutsideContainerMessage(dependency: D.self, file: file, line: line, function: function))
         }
         if let currentResolver = storage(for: factory)?.asyncRegistrations.currentResolver() {
             return await factory.scope.resolve(resolver: currentResolver)
@@ -124,7 +124,7 @@ public class Container: @unchecked Sendable {
 
     func resolve<D>(factory: AsyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async throws -> D {
         if fatalErrorOnResolve && !hasTaskLocalContext {
-            fatalError("Tried to resolve dependency: \(String(describing: D.self)) when container was set to fatal error on resolution. This is likely because tests executed a task that did not have the container context. This often happens on a detached task. Please use `Container.current` and `withContainer` to add container information back to a detached task. Called from \(file):\(line) in \(function). It's also possible you just didn't use `withTestContainer` around a test that needed it and now have test interference from tests that do use that.")
+            fatalError(resolvedOutsideContainerMessage(dependency: D.self, file: file, line: line, function: function))
         }
         if let currentResolver = storage(for: factory)?.asyncThrowingRegistrations.currentResolver() {
             return try await factory.scope.resolve(resolver: currentResolver)
@@ -174,21 +174,41 @@ public class Container: @unchecked Sendable {
     }
 
     func useProduction<F: _Factory>(on factory: F) {
+        setTestResolution(.production, on: factory)
+    }
+
+    func useParentContainer<F: _Factory>(on factory: F) {
+        setTestResolution(.parentContainer, on: factory)
+    }
+
+    private func setTestResolution<F: _Factory>(_ resolution: TestResolution, on factory: F) {
         guard let storage = storage(for: factory) else {
             preconditionFailure("Factory not registered! That should've happened on factory init")
         }
-        storage.useProduction = true
+        storage.testResolution = resolution
     }
+}
+
+/// Where a test container gets a factory's value. The most recent of `useProduction()` and
+/// `useParentContainer()` wins.
+enum TestResolution: UInt8 {
+    /// The test container's own registrations; unregistered behavior if there are none.
+    case registrations
+    /// The factory's production resolver.
+    case production
+    /// Whatever the container enclosing `withTestContainer` resolves.
+    case parentContainer
 }
 
 extension Container {
     class StorageBase { }
 
     final class Storage<Factory: _Factory>: StorageBase, @unchecked Sendable {
-        private let _useProduction = ManagedAtomic(false)
-        var useProduction: Bool {
-            get { _useProduction.load(ordering: .sequentiallyConsistent) }
-            set { _useProduction.store(newValue, ordering: .sequentiallyConsistent) }
+        private let _testResolution = ManagedAtomic(TestResolution.registrations.rawValue)
+        /// How a ``TestContainer`` resolves this factory. Only test containers read it.
+        var testResolution: TestResolution {
+            get { TestResolution(rawValue: _testResolution.load(ordering: .sequentiallyConsistent)) ?? .registrations }
+            set { _testResolution.store(newValue.rawValue, ordering: .sequentiallyConsistent) }
         }
         let syncRegistrations = SyncRegistrations<Factory.Dependency>()
         let syncThrowingRegistrations = SyncThrowingRegistrations<Factory.Dependency>()

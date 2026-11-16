@@ -14,6 +14,50 @@ private let _fatalErrorOnResolveRefCount = ManagedAtomic<Int>(0)
 private nonisolated(unsafe) var _originalFatalErrorOnResolveValue: Bool = false
 private let _fatalErrorOnResolveValueSaved = ManagedAtomic<Bool>(false)
 
+/// The call sites of every `withTestContainer` block open right now, across the process, so a
+/// resolve outside any container can say which test containers turned the crash on.
+enum OpenTestContainers {
+    private static let lock = NSLock()
+    private static nonisolated(unsafe) var nextID = 0
+    private static nonisolated(unsafe) var sites = [Int: String]()
+
+    static func open(file: String, line: UInt, function: String) -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        let id = nextID
+        nextID += 1
+        sites[id] = "\(file):\(line) in \(function)"
+        return id
+    }
+
+    static func close(_ id: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        sites[id] = nil
+    }
+
+    /// Open call sites, oldest first.
+    static var callSites: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return sites.sorted { $0.key < $1.key }.map(\.value)
+    }
+}
+
+/// The message for a resolve that has no task-local container while a test container is open.
+func resolvedOutsideContainerMessage(dependency: Any.Type, file: String, line: UInt, function: String) -> String {
+    let open = OpenTestContainers.callSites
+    let shown = open.map { "  - \($0)" }.joined(separator: "\n")
+    return """
+    Tried to resolve \(String(describing: dependency)) outside any container, called from \(file):\(line) in \(function).
+    While any withTestContainer block is open, every resolve in this process must run inside a container. One of these happened:
+    1. The test making this call doesn't use withTestContainer. Every test in this binary that resolves dependencies must use withTestContainer while any test does, because tests run in parallel.
+    2. Work escaped its container: a Task.detached, a callback on another thread or queue, or a Task that outlived its withTestContainer block (including a cancelled one that wasn't awaited). Capture `Container.current` and re-apply it with `withContainer`, or await the task before the block ends.
+    Test containers open at the time (they may belong to other tests running in parallel):
+    \(shown.isEmpty ? "  (none)" : shown)
+    """
+}
+
 final class TestContainer: Container, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     let unregisteredBehavior: UnregisteredBehavior
@@ -42,7 +86,14 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: SyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return factory.scope.resolve(resolver: factory.resolver) }
+        switch storage?.testResolution {
+        case .production?:
+            return factory.scope.resolve(resolver: factory.resolver)
+        case .parentContainer?:
+            return _parent.resolve(factory: factory, hasTaskLocalContext: true, file: file, line: line, function: function)
+        case .registrations?, nil:
+            break
+        }
         if let registered = storage?.syncRegistrations.currentResolver() {
             return factory.scope.resolve(resolver: registered)
         }
@@ -64,7 +115,14 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: SyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) throws -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return try factory.scope.resolve(resolver: factory.resolver) }
+        switch storage?.testResolution {
+        case .production?:
+            return try factory.scope.resolve(resolver: factory.resolver)
+        case .parentContainer?:
+            return try _parent.resolve(factory: factory, hasTaskLocalContext: true, file: file, line: line, function: function)
+        case .registrations?, nil:
+            break
+        }
         if let registered = storage?.syncThrowingRegistrations.currentResolver() {
             return try factory.scope.resolve(resolver: registered)
         }
@@ -86,7 +144,14 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: AsyncFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return await factory.scope.resolve(resolver: factory.resolver) }
+        switch storage?.testResolution {
+        case .production?:
+            return await factory.scope.resolve(resolver: factory.resolver)
+        case .parentContainer?:
+            return await _parent.resolve(factory: factory, hasTaskLocalContext: true, file: file, line: line, function: function)
+        case .registrations?, nil:
+            break
+        }
         if let registered = storage?.asyncRegistrations.currentResolver() {
             return await factory.scope.resolve(resolver: registered)
         }
@@ -108,7 +173,14 @@ final class TestContainer: Container, @unchecked Sendable {
 
     override func resolve<D>(factory: AsyncThrowingFactory<D>, hasTaskLocalContext: Bool = false, file: String = #file, line: UInt = #line, function: String = #function) async throws -> D {
         let storage = storage(for: factory)
-        guard storage?.useProduction != true else { return try await factory.scope.resolve(resolver: factory.resolver) }
+        switch storage?.testResolution {
+        case .production?:
+            return try await factory.scope.resolve(resolver: factory.resolver)
+        case .parentContainer?:
+            return try await _parent.resolve(factory: factory, hasTaskLocalContext: true, file: file, line: line, function: function)
+        case .registrations?, nil:
+            break
+        }
         if let registered = storage?.asyncThrowingRegistrations.currentResolver() {
             return try await factory.scope.resolve(resolver: registered)
         }
@@ -421,6 +493,9 @@ public func withTestContainer<T>(defaults: TestDefaults? = nil,
         }
     }
 
+    let openContainerID = OpenTestContainers.open(file: file, line: line, function: function)
+    defer { OpenTestContainers.close(openContainerID) }
+
     let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
                                       leakedResolutionBehavior: leakedResolutionBehavior,
@@ -486,6 +561,9 @@ public func withTestContainer<T>(isolation: isolated(any Actor)? = #isolation,
             _fatalErrorOnResolveValueSaved.store(false, ordering: .sequentiallyConsistent)
         }
     }
+
+    let openContainerID = OpenTestContainers.open(file: file, line: line, function: function)
+    defer { OpenTestContainers.close(openContainerID) }
 
     let testContainer = TestContainer(parent: Container(parent: Container.current),
                                       unregisteredBehavior: unregisteredBehavior,
