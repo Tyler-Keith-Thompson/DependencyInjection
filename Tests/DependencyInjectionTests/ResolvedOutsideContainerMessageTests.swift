@@ -14,6 +14,7 @@ struct ResolvedOutsideContainerMessageTests {
             #expect(message.contains("Tried to resolve Int outside any container, called from Caller.swift:7 in caller()"))
             #expect(message.contains("doesn't use withTestContainer"))
             #expect(message.contains("Work escaped its container"))
+            #expect(message.contains("a request handler a server framework (Vapor, SwiftNIO) runs on its own event-loop task"))
             #expect(message.contains("\(#file):\(containerLine) in \(#function)"))
         }
     }

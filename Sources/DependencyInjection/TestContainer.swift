@@ -52,7 +52,7 @@ func resolvedOutsideContainerMessage(dependency: Any.Type, file: String, line: U
     Tried to resolve \(String(describing: dependency)) outside any container, called from \(file):\(line) in \(function).
     While any withTestContainer block is open, every resolve in this process must run inside a container. One of these happened:
     1. The test making this call doesn't use withTestContainer. Every test in this binary that resolves dependencies must use withTestContainer while any test does, because tests run in parallel.
-    2. Work escaped its container: a Task.detached, a callback on another thread or queue, or a Task that outlived its withTestContainer block (including a cancelled one that wasn't awaited). Capture `Container.current` and re-apply it with `withContainer`, or await the task before the block ends.
+    2. Work escaped its container: a Task.detached, a callback on another thread or queue, a request handler a server framework (Vapor, SwiftNIO) runs on its own event-loop task, or a Task that outlived its withTestContainer block (including a cancelled one that wasn't awaited). Capture `Container.current` and re-apply it with `withContainer`, or await the task before the block ends.
     Test containers open at the time (they may belong to other tests running in parallel):
     \(shown.isEmpty ? "  (none)" : shown)
     """
