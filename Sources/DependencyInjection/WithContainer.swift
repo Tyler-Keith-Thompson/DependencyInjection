@@ -10,7 +10,8 @@ import ServiceContextModule
 /// Executes a synchronous operation within the context of the given container.
 ///
 /// Use this function to reapply container context to operations that would otherwise
-/// lose it, such as detached tasks or GCD blocks:
+/// lose it, such as detached tasks, GCD blocks, or the request handlers of a server framework
+/// (Vapor, SwiftNIO) that runs them on its own event-loop tasks:
 ///
 /// ```swift
 /// let container = Container.current
@@ -45,6 +46,19 @@ public func withContainer<T>(
 /// Task.detached {
 ///     await withContainer(container) {
 ///         let session = await Container.session()
+///     }
+/// }
+/// ```
+///
+/// Server request handlers (Vapor, SwiftNIO) lose it too: the framework runs each handler on
+/// its own event-loop task, not in the task that configured the routes. Capture the container
+/// when the routes are built and apply it in every handler:
+///
+/// ```swift
+/// func routes(_ app: Application) {
+///     let container = Container.current
+///     app.get("x") { req in
+///         await withContainer(container) { await Container.service().handle(req) }
 ///     }
 /// }
 /// ```

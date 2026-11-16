@@ -294,7 +294,7 @@ Registrations are LIFO (last-in, first-out). `popRegistration()` removes the mos
 
 ## Detached Tasks and Context Propagation
 
-The current container propagates automatically through structured concurrency (child tasks, task groups, etc.). However, **detached tasks** (`Task.detached`) lose this context. Use `withContainer` to re-apply it:
+The current container propagates automatically through structured concurrency (child tasks, task groups, etc.). However, **detached tasks** (`Task.detached`) and work a framework starts on its own tasks or threads, such as [server request handlers](#server-request-handlers), lose this context. Use `withContainer` to re-apply it:
 
 ```swift
 let container = Container.current
@@ -308,6 +308,23 @@ Task.detached {
     }
 }
 ```
+
+### Server request handlers
+
+A server framework such as Vapor or SwiftNIO runs each request handler on its own event-loop task, not in the task that configured the routes. Handlers therefore lose the container too, even when the whole server was started inside `withContainer` or `withTestContainer`: a resolve in a handler goes to `Container.default`, and in a test it hits the "outside any container" crash.
+
+Capture `Container.current` when the routes are built, and wrap each handler in `withContainer`:
+
+```swift
+func routes(_ app: Application) {
+    let container = Container.current
+    app.get("x") { req in
+        await withContainer(container) { await Container.service().handle(req) }
+    }
+}
+```
+
+This applies to every factory variant and scope, because it is about which container is current, not about how a factory resolves. The same pattern works for any callback a library invokes from its own threads or tasks.
 
 ---
 
