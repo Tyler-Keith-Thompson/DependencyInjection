@@ -71,6 +71,9 @@ extension Container {
 }
 
 struct CycleDetectionTests {
+    // Exit tests (`#expect(processExitsWith:)`) need Swift 6.2; CI runs swift:6.1.2, where
+    // these three are left out.
+    #if compiler(>=6.2)
     @Test func syncCycleThroughConstructorInjectionStopsWithTheCycle() async throws {
         let result = await #expect(processExitsWith: .failure, observing: [\.standardErrorContent]) {
             _ = Container.cycleA()
@@ -101,6 +104,7 @@ struct CycleDetectionTests {
         #expect(stderr.contains("Dependency cycle detected: AsyncCycleA depends on itself."))
         #expect(stderr.contains("  → AsyncCycleB  (resolved at CycleDetectionTests.swift:"))
     }
+    #endif
 
     // These resolve real factories, so they run in a test container: resolving against the
     // default container while another test is inside one is a guarded error.
