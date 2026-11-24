@@ -10,7 +10,7 @@ import Atomics
 /// The dependency resolution context.
 ///
 /// `Container` holds the registration stacks for all factories and resolves dependencies
-/// by walking a parent-child hierarchy. There is always a global ``default`` container,
+/// by walking a parent-child hierarchy. There is always a global default container,
 /// and the framework uses Swift's `ServiceContext` to propagate the ``current`` container
 /// through async call chains.
 ///
@@ -35,7 +35,7 @@ import Atomics
 ///    }
 ///    ```
 ///
-/// Containers form a hierarchy via ``withNestedContainer(operation:)-7glsq``. Child containers
+/// Containers form a hierarchy via ``withNestedContainer(operation:)``. Child containers
 /// inherit registrations from their parent but can override them independently.
 public class Container: @unchecked Sendable {
     private let lock = NSRecursiveLock()

@@ -1,18 +1,20 @@
 # DependencyInjection
 
-A Swift 6 dependency injection framework with first-class async/await support, macro-based property injection, and test isolation that actually works with concurrent tests.
+Dependency injection for Swift 6. Factories can be sync or async, throwing or not; macros inject them into properties; and each test gets its own container, so tests that run in parallel never see each other's test doubles.
+
+**[Documentation](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/)**
 
 ## Features
 
-- **Swift 6 strict concurrency** -- fully `Sendable`, no data races
-- **Four factory variants** -- sync, sync-throwing, async, async-throwing
-- **Three scoping strategies** -- unique, cached, shared (weak)
-- **Macro-based injection** -- `@Injected`, `@LazyInjected`, `@ConstructorInjected`
-- **Hierarchical containers** -- nested scopes with parent fallback
-- **Test container isolation** -- concurrent tests never interfere with each other
-- **Leaked resolution detection** -- catches async work that escapes test scope
-- **Dependency cycle detection** -- debug builds stop on a cycle and print the whole chain
-- **Composable test defaults** -- reusable test fixtures via result builders
+- Built for Swift 6 strict concurrency: everything is `Sendable`.
+- Four kinds of factory: sync, sync throwing, async and async throwing.
+- Three scopes: unique, cached and shared (weak).
+- `@Injected`, `@LazyInjected` and `@ConstructorInjected` macros.
+- Nested containers that fall back to their parent.
+- Test containers that stay isolated when tests run concurrently.
+- Detection of async work that escapes a test and resolves after it ends.
+- Debug builds stop on a dependency cycle and print the whole chain.
+- Reusable, composable sets of test doubles.
 
 ## Requirements
 
@@ -21,7 +23,7 @@ A Swift 6 dependency injection framework with first-class async/await support, m
 
 ## Installation
 
-Add to your `Package.swift`:
+Add the package to your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -29,7 +31,7 @@ dependencies: [
 ]
 ```
 
-Then add the dependency to your target:
+Then add it to your target:
 
 ```swift
 .target(
@@ -40,9 +42,7 @@ Then add the dependency to your target:
 )
 ```
 
----
-
-## Quick Start
+## Quick start
 
 ### 1. Define your factories
 
@@ -90,566 +90,19 @@ class OrderService {
 }
 ```
 
-That's it. No protocols for the container, no complex registration ceremonies, no ambient singletons leaking across tests.
-
----
-
-## Core Concepts
-
-### Factories
-
-A **Factory** is the unit of registration. It wraps a closure that knows how to create a dependency and automatically registers itself with `Container.default` on creation.
-
-```swift
-// Sync
-static let logger = Factory { ConsoleLogger() as Logger }
-
-// Sync throwing
-static let config = Factory { try loadConfig() }
-
-// Async
-static let session = Factory { await URLSession.shared }
-
-// Async throwing
-static let database = Factory { try await Database.connect() }
-```
-
-The return type of the closure determines which factory type is created:
-
-| Closure signature | Factory type |
-|---|---|
-| `() -> T` | `SyncFactory<T>` |
-| `() throws -> T` | `SyncThrowingFactory<T>` |
-| `() async -> T` | `AsyncFactory<T>` |
-| `() async throws -> T` | `AsyncThrowingFactory<T>` |
-
-Factories are callable. You can resolve a dependency by calling the factory directly:
-
-```swift
-let logger = Container.logger()              // sync
-let config = try Container.config()          // sync throwing
-let session = await Container.session()      // async
-let db = try await Container.database()      // async throwing
-```
-
-### Container
-
-`Container` is the resolution context. There is always a default global container (`Container.default`), and the framework uses Swift's `ServiceContext` to propagate the *current* container through async call chains.
-
-```swift
-// The container in the current async context
-Container.current
-
-// The global default (used when no context is set)
-Container.default
-```
-
-Containers form a parent-child hierarchy. When resolving, a container checks its own storage first, then walks up to its parent.
-
-### Scopes
-
-Scopes control instance lifetime. Pass a scope when creating a factory:
-
-```swift
-static let logger   = Factory(scope: .unique)  { ConsoleLogger() }  // default
-static let analytics = Factory(scope: .cached)  { AnalyticsService() }
-static let session   = Factory(scope: .shared)  { Session() }
-```
-
-| Scope | Behavior | Use when |
-|---|---|---|
-| `.unique` | New instance every resolution | Stateless services, value types, or when you want a fresh instance each time |
-| `.cached` | Created once, held with a strong reference forever | True singletons that live for the app's lifetime |
-| `.shared` | Created once, held with a weak reference; recreated if all external references are released | Shared resources you want to deallocate when no longer in use |
-
-Caches are **per-container** -- a test container gets its own cache, so cached singletons in tests never collide with production or other tests.
-
-For async factories with `.cached` or `.shared` scope, concurrent resolutions are **deduplicated** -- only one async task runs the resolver, and all concurrent callers await the same result.
-
----
-
-## Injection Macros
-
-Three macros provide property-level injection. Each handles all four factory variants (sync, throwing, async, async-throwing) automatically.
-
-### `@Injected` -- resolve on every access
-
-```swift
-class FeatureViewModel {
-    @Injected(Container.logger) var logger: Logger
-}
-```
-
-Every time you read `logger`, the factory resolves again. This is useful when the factory has `.unique` scope and you want the latest registration, or when combined with `.cached`/`.shared` scope where re-resolution is cheap (cache hit).
-
-For throwing factories, the wrapped value is `Result<T, any Error>`:
-
-```swift
-@Injected(Container.config) var config: Result<Config, any Error>
-
-func loadConfig() throws -> Config {
-    try config.get()
-}
-```
-
-For async factories, the wrapped value is a `Task`:
-
-```swift
-@Injected(Container.session) var session: Task<URLSession, Never>
-
-func fetch() async {
-    let s = await session.value
-    // use s
-}
-```
-
-### `@ConstructorInjected` -- resolve once at init
-
-```swift
-class PaymentProcessor {
-    @ConstructorInjected(Container.gateway) var gateway: PaymentGateway
-}
-```
-
-The dependency is resolved immediately when the owning type is initialized. The resolved value is stored and reused for the lifetime of the object. Async tasks are cancelled in `deinit`.
-
-### `@LazyInjected` -- resolve on first access, then cache
-
-```swift
-class ReportGenerator {
-    @LazyInjected(Container.formatter) var formatter: DateFormatter
-}
-```
-
-The dependency is **not** resolved until the first time you read the property. After that, the resolved value is cached in the instance (thread-safe).
-
-Which container it resolves in depends on the factory:
-
-- **Sync and sync-throwing factories** resolve at the first read, in whatever `Container.current` is *at that read*, not the container the object was created in.
-- **Async and async-throwing factories** start a `Task` at init. The task inherits the creating context, so it resolves in the container current *at init*. The first read only stores the `Task`; awaiting `.value` waits for the result.
-
-So an object created inside one container and first read somewhere else (a SwiftUI `.task`, a callback, a `Task.detached`) gets its sync `@LazyInjected` dependencies from wherever it is read, which can be `Container.default` in the middle of a test. If an object may be first used outside the context it was created in, use `@ConstructorInjected` instead, or do the first read inside `withContainer`:
-
-```swift
-let container = Container.current
-let generator = ReportGenerator()
-
-Task.detached {
-    withContainer(container) {
-        _ = generator.formatter // resolves in `container`, not Container.default
-    }
-}
-```
-
-### Projected value (`$`)
-
-All three macros expose the underlying factory as a projected value via `$`:
-
-```swift
-class MyService {
-    @Injected(Container.logger) var logger: Logger
-
-    func swapLogger() {
-        $logger.register { FileLogger() }
-    }
-}
-```
-
-### Comparison table
-
-| Macro | Resolves when | Subsequent reads | Stores value | Best for |
-|---|---|---|---|---|
-| `@Injected` | Every property access | Re-resolve each time | No | Always-fresh values, lightweight factories |
-| `@ConstructorInjected` | Object init | Return stored value | Yes | Dependencies needed for the object's lifetime |
-| `@LazyInjected` | Sync: first property access, in the container current at that read. Async: object init, in the creating container | Return cached value | Yes (after first read) | Expensive init you want to defer, read in the context that created the object |
-
----
-
-## Hierarchical Containers
-
-Create nested container scopes with `withNestedContainer`. Child containers inherit registrations from their parent but can override them without affecting the parent.
-
-```swift
-// Parent scope
-Container.logger.register { ConsoleLogger() }
-
-withNestedContainer {
-    // Override in child scope
-    Container.logger.register { FileLogger() }
-    Container.logger() // -> FileLogger
-
-    withNestedContainer {
-        // Grandchild inherits from child
-        Container.logger() // -> FileLogger
-
-        // Override in grandchild
-        Container.logger.register { RemoteLogger() }
-        Container.logger() // -> RemoteLogger
-    }
-
-    // Child is unaffected
-    Container.logger() // -> FileLogger
-}
-
-// Parent is unaffected
-Container.logger() // -> ConsoleLogger
-```
-
-### Manual registration stacking
-
-You can also push/pop registrations manually using `register` and `popRegistration`:
-
-```swift
-Container.logger.register { FileLogger() }
-Container.logger() // -> FileLogger
-
-Container.logger.popRegistration()
-Container.logger() // -> back to previous registration
-```
-
-Registrations are LIFO (last-in, first-out). `popRegistration()` removes the most recent override.
-
----
-
-## Dependency Cycles
-
-In debug builds, resolving a factory that is already being resolved further up the same chain stops immediately with the whole cycle:
-
-```
-Dependency cycle detected: CycleA depends on itself.
-  CycleA  (resolved at AppView.swift:20 in body)
-  → CycleB  (resolved at CycleA.swift:12 in CycleA)
-  → CycleA  (resolved at CycleB.swift:15 in CycleB)
-```
-
-Without this, a sync cycle overflows the stack and an async `.cached` or `.shared` cycle hangs. Release builds skip the check.
-
-Only resolutions that can never finish are reported: the same factory, in the same container, resolved again while its own resolution is still waiting on the result. That covers direct calls, sync and async, and the task a `.cached` or `.shared` scope awaits for an async resolver. A back-reference resolved from a `Task { }` the owner starts but doesn't wait on (including the ones `@ConstructorInjected` and `@LazyInjected` start for async factories) is not a cycle, and is not reported. Cycles through `async let`, task groups, or a `Task` the resolver awaits are not detected, because Swift can't tell those tasks apart from ones nobody waits on. Nor is an async `.cached` or `.shared` cycle that two callers enter at the same time from different factories (one resolving A→B while another resolves B→A): each scope's task carries only the chain of the caller that started it, so the two wait on each other and hang instead of being reported.
-
-If two types inject each other with macros, give their factories explicit types (`static let a: SyncFactory<A> = Factory { A() }`). Otherwise the compiler reports "circular reference expanding peer macros" before the code ever runs.
-
-## Detached Tasks and Context Propagation
-
-The current container propagates automatically through structured concurrency (child tasks, task groups, etc.). However, **detached tasks** (`Task.detached`) and work a framework starts on its own tasks or threads, such as [server request handlers](#server-request-handlers), lose this context. Use `withContainer` to re-apply it:
-
-```swift
-let container = Container.current
-
-Task.detached {
-    // Container.current would be Container.default here!
-
-    withContainer(container) {
-        // Container.current is now the correct container
-        let logger = Container.logger()
-    }
-}
-```
-
-### Server request handlers
-
-A server framework such as Vapor or SwiftNIO runs each request handler on its own event-loop task, not in the task that configured the routes. Handlers therefore lose the container too, even when the whole server was started inside `withContainer` or `withTestContainer`: a resolve in a handler goes to `Container.default`, and in a test it hits the "outside any container" crash.
-
-Capture `Container.current` when the routes are built, and wrap each handler in `withContainer`:
-
-```swift
-func routes(_ app: Application) {
-    let container = Container.current
-    app.get("x") { req in
-        await withContainer(container) { await Container.service().handle(req) }
-    }
-}
-```
-
-This applies to every factory variant and scope, because it is about which container is current, not about how a factory resolves. The same pattern works for any callback a library invokes from its own threads or tasks.
-
----
-
-## Testing
-
-### `withTestContainer`
-
-Wrap each test in `withTestContainer` to get an isolated container that cannot interfere with other tests, even when running concurrently:
-
-```swift
-@Test func myTest() {
-    withTestContainer {
-        Container.logger.register { MockLogger() }
-        // All resolutions inside this block use the test container
-    }
-    // Test container is torn down -- registrations are gone
-}
-```
-
-`withTestContainer` works with both sync and async tests:
-
-```swift
-@Test func asyncTest() async {
-    await withTestContainer {
-        Container.networkClient.register { MockClient() }
-        let result = await fetchData()
-        #expect(result == .success)
-    }
-}
-```
-
-**What happens under the hood:**
-1. A `TestContainer` (child of the current container) is created
-2. It is set as the current container via `ServiceContext`
-3. `Container.default.fatalErrorOnResolve` is set to `true` -- any resolution that escapes the test container and hits the default container will crash with a clear error message
-4. When the block exits, everything is cleaned up
-
-**While any test container is open, every test in the binary that resolves dependencies must use `withTestContainer`.** Step 3 is process-wide: tests run in parallel, so a test that resolves with no container at all crashes whenever another test's `withTestContainer` block happens to be open. The crash message names both causes (a test without `withTestContainer`, or work that escaped its container, such as a `Task.detached` or a `Task` that outlived its block) and lists the file, line and function of every test container open at the time, so you can see which tests were running.
-
-### Unregistered behavior
-
-By default, resolving a factory that was **not** registered in the test container triggers a `fatalError` with a detailed message (file, line, function of both the resolution site and the test container creation site). This catches missing test doubles immediately:
-
-```swift
-// This will crash with:
-// "Dependency: Logger on factory: ... not registered!
-//  Called from MyService.swift:42 in placeOrder().
-//  Test container created at MyServiceTests.swift:10 in testPlaceOrder()"
-withTestContainer {
-    let service = OrderService() // OrderService uses @Injected(Container.logger)
-    service.placeOrder()         // BOOM -- Container.logger not registered
-}
-```
-
-### Opting a factory out of test doubles
-
-Inside a test container, two calls let a factory resolve without a test registration. Each applies only to the current test container, respects the factory's scope, and the most recent call wins:
-
-```swift
-withTestContainer {
-    Container.dateFormatter.useProduction()   // always the production resolver
-    Container.logger.useParentContainer()     // the enclosing container's registration
-}
-```
-
-`useParentContainer()` is for registrations made outside the test container, such as a shared `withNestedContainer` set up around several tests. It uses the enclosing container's *resolver*, not its instance: the resolver runs inside the test container, so a `.cached` or `.shared` value is cached in the test container (each test gets its own, not the one the enclosing container holds), and the resolver's own dependencies resolve in the test container too, which means they need test registrations or their own `useProduction()` / `useParentContainer()`. If nothing above the test container registers the factory, it falls back to production.
-
-### Leaked resolution detection
-
-When async work spawned inside `withTestContainer` outlives the block, it can resolve dependencies against a dead test container. The framework detects this and takes action:
-
-```swift
-withTestContainer {
-    // This task is NOT awaited -- it will outlive the test container
-    Task { await Container.session() }
-}
-// The leaked resolution is detected here
-```
-
-Three built-in behaviors are available:
-
-| Type | Behavior |
-|---|---|
-| `DefaultLeakedResolutionBehavior` | Checks `DI_BEST_EFFORT_LEAK_RESOLUTION` env var. If `"true"`, uses best-effort. Otherwise crashes. **(default)** |
-| `BestEffortLeakedResolutionBehavior` | Cancels the leaking task, returns `nil` for optionals, falls back to the production resolver as a last resort |
-| `CrashLeakedResolutionBehavior` | Always crashes with a detailed error message |
-
-Specify a behavior explicitly:
-
-```swift
-withTestContainer(leakedResolutionBehavior: BestEffortLeakedResolutionBehavior()) {
-    // ...
-}
-```
-
-Or set the environment variable `DI_BEST_EFFORT_LEAK_RESOLUTION=true` in your test scheme to use best-effort globally.
-
-### Composable test defaults
-
-For libraries or large features, define reusable sets of test doubles using `TestDefault` and `TestDefaults`:
-
-```swift
-// A single test default
-let loggerDefault = TestDefault {
-    Container.logger.testValue { MockLogger() }
-}
-
-// A group of test defaults
-extension TestDefaults {
-    static let networkingDefaults = TestDefaults {
-        TestDefault { Container.httpClient.testValue { MockHTTPClient() } }
-        TestDefault { Container.session.testValue { MockSession() } }
-    }
-}
-```
-
-Compose defaults together:
-
-```swift
-extension TestDefaults {
-    static let featureDefaults = TestDefaults {
-        .networkingDefaults
-        TestDefault { Container.analytics.testValue { NoopAnalytics() } }
-    }
-}
-```
-
-Apply them to a test container:
-
-```swift
-@Test func featureTest() {
-    withTestContainer(defaults: .featureDefaults) {
-        // All defaults are pre-registered
-        let client = Container.httpClient() // -> MockHTTPClient
-    }
-}
-```
-
-You can also pass an array of defaults:
-
-```swift
-withTestContainer(defaults: [.networkingDefaults, .analyticsDefaults]) {
-    // Both sets of defaults are registered
-}
-```
-
-This lets library authors ship test doubles alongside their DI registrations, and feature teams compose them without boilerplate.
-
----
-
-## Architecture
-
-### Component overview
-
-```
-Container                    The resolution context; holds per-factory storage
-  |-- Storage<Factory>       LIFO registration stack per factory
-  |-- parent: Container?     Parent for hierarchical fallback
-  '-- fatalErrorOnResolve    Atomic flag for test leak detection
-
-Factory (Sync|SyncThrowing|Async|AsyncThrowing)
-  |-- resolver               The default production closure
-  |-- scope                  Lifetime strategy (unique/cached/shared)
-  |-- register()             Push an override onto the current container's stack
-  |-- popRegistration()      Pop the most recent override
-  '-- callAsFunction()       Resolve through Container.current
-
-Scope
-  |-- UniqueScope            Always calls the resolver
-  |-- CachedScope            Per-container strong cache + async task deduplication
-  '-- SharedScope            Per-container weak cache + async task deduplication
-
-TestContainer (extends Container)
-  |-- executingTest           Atomic flag for leak detection window
-  |-- unregisteredBehavior    What to do when a factory has no test double
-  '-- leakedResolutionBehavior  What to do when resolution escapes test scope
-
-Macros (@Injected, @LazyInjected, @ConstructorInjected)
-  '-- Expand to resolver types + computed property + projected value
-```
-
-### Resolution flow
-
-When you call `factory()` or access an `@Injected` property:
-
-1. **Find the current container** via `ServiceContext` (falls back to `Container.default`)
-2. **Check the container's registration stack** for this factory
-3. If found, **apply the scope** (unique returns a new instance; cached/shared check the cache first)
-4. If not found, **walk up to the parent container** and repeat
-5. If no container has an override, **use the factory's default resolver** with its scope
-6. In a `TestContainer`, if no registration exists and `executingTest` is false, trigger **leaked resolution behavior**
-7. In a `TestContainer`, if no registration exists and `executingTest` is true, trigger **unregistered behavior** (default: `fatalError`)
-
-### Thread safety
-
-| Mechanism | Where used |
-|---|---|
-| `NSRecursiveLock` | Container storage, registration stacks, scope caches, `LazyInjectedResolver` |
-| `ManagedAtomic<Bool>` | `fatalErrorOnResolve`, `executingTest` flags |
-| `ManagedAtomic<UInt8>` | Per-test-container `useProduction()` / `useParentContainer()` mode |
-| `ManagedAtomic<Int>` | Ref-counting for concurrent `withTestContainer` entry/exit |
-| `@globalActor DIActor` | Serializing async cached/shared scope resolution (prevents duplicate tasks) |
-| `ServiceContext` (task-local) | Propagating the current container through structured concurrency |
-
-### How caching works with containers
-
-Caches (`StrongCache`, `WeakCache`) store entries **per container identity** (`ObjectIdentifier`). This means:
-
-- Each `withTestContainer` block gets its own cache entries
-- Concurrent tests with `.cached` scope never share instances
-- In production, `Container.default` cache entries persist as expected
-- Cache lookups never go above a `TestContainer`, to prevent test pollution. A `withNestedContainer` inside a test reads values cached in itself, its parents and the test container, but nothing cached above the test container
-
-When you call `factory.register(...)` on a factory with `.cached` or `.shared` scope, the cache is automatically cleared so the next resolution uses the new resolver.
-
----
-
-## API Reference
-
-### Free functions
-
-| Function | Description |
-|---|---|
-| `Factory(scope:resolver:)` | Create a factory. The closure signature determines the factory type. |
-| `withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:operation:)` | Run a test in an isolated container. Sync and async overloads. |
-| `withNestedContainer(operation:)` | Create a child container scope. Sync and async overloads. |
-| `withContainer(_:operation:)` | Re-apply a container context (for detached tasks). Sync and async overloads. |
-
-### `SyncFactory<T>` / `SyncThrowingFactory<T>` / `AsyncFactory<T>` / `AsyncThrowingFactory<T>`
-
-| Method | Description |
-|---|---|
-| `callAsFunction()` | Resolve the dependency through `Container.current` |
-| `register(_:)` | Push a new resolver onto the current container's stack and clear scope cache |
-| `popRegistration()` | Remove the most recent resolver from the stack |
-| `useProduction()` | In the current test container, resolve with the production resolver (bypasses test overrides) |
-| `useParentContainer()` | In the current test container, resolve with the enclosing container's registration (else production), run and cached in the test container |
-| `testValue(_:)` | Create a `FactoryDefault` for use with `TestDefault` / `TestDefaults` |
-
-### `Container`
-
-| Property/Method | Description |
-|---|---|
-| `Container.current` | The container in the current async context |
-| `Container.default` | The global default container |
-
-### Scopes
-
-| Scope | Description |
-|---|---|
-| `.unique` | New instance per resolution (default) |
-| `.cached` | Strong-cached per container, async-deduplicated |
-| `.shared` | Weak-cached per container, async-deduplicated; recreated when all references are released |
-
-### Macros
-
-| Macro | Wrapped value type | Resolves |
-|---|---|---|
-| `@Injected(syncFactory)` | `T` | Every access |
-| `@Injected(syncThrowingFactory)` | `Result<T, any Error>` | Every access |
-| `@Injected(asyncFactory)` | `Task<T, Never>` | Every access |
-| `@Injected(asyncThrowingFactory)` | `Task<T, any Error>` | Every access |
-| `@ConstructorInjected(syncFactory)` | `T` | Once at init |
-| `@ConstructorInjected(syncThrowingFactory)` | `Result<T, any Error>` | Once at init |
-| `@ConstructorInjected(asyncFactory)` | `Task<T, Never>` | Once at init |
-| `@ConstructorInjected(asyncThrowingFactory)` | `Task<T, any Error>` | Once at init |
-| `@LazyInjected(syncFactory)` | `T` | First access, in the container current at that read |
-| `@LazyInjected(syncThrowingFactory)` | `Result<T, any Error>` | First access, in the container current at that read |
-| `@LazyInjected(asyncFactory)` | `Task<T, Never>` | Task starts at init, in the creating container; the first access stores it |
-| `@LazyInjected(asyncThrowingFactory)` | `Task<T, any Error>` | Task starts at init, in the creating container; the first access stores it |
-
-### Test defaults
-
-| Type | Description |
-|---|---|
-| `FactoryDefault` | A single factory-to-resolver binding, created by `factory.testValue { ... }` |
-| `TestDefault` | A group of `FactoryDefault`s, built with `@TestDefaultBuilder` |
-| `TestDefaults` | A composable group of `TestDefault` and/or other `TestDefaults`, built with `@TestDefaultsBuilder`. Also `ExpressibleByArrayLiteral`. |
-
-### Leaked resolution behaviors
-
-| Type | Behavior |
-|---|---|
-| `DefaultLeakedResolutionBehavior` | Crashes unless `DI_BEST_EFFORT_LEAK_RESOLUTION=true` env var is set |
-| `BestEffortLeakedResolutionBehavior` | Cancels task, returns nil for optionals, falls back to production |
-| `CrashLeakedResolutionBehavior` | Always crashes |
-| Custom | Conform to `LeakedResolutionBehavior` protocol |
-
----
+## Guides
+
+The full guide lives in the DocC documentation:
+
+- [Factories, containers and scopes](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/coreconcepts): the four factory types, the current container, and `.unique`, `.cached` and `.shared`.
+- [Injection macros](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/injectionmacros): when each macro resolves, and which container it resolves in.
+- [Hierarchical containers](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/hierarchicalcontainers): overriding registrations in a nested scope.
+- [Dependency cycles](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/dependencycycles): what debug builds report, and what they can't see.
+- [Detached tasks and context propagation](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/contextpropagation): `Task.detached`, server request handlers and other callbacks.
+- [Testing](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/testing): test containers, missing test doubles, leaked resolutions and shared test defaults.
+- [Architecture](https://tyler-keith-thompson.github.io/DependencyInjection/DependencyInjection/documentation/dependencyinjection/architecture): how resolution works and what keeps it thread-safe.
+
+The API reference is there too.
 
 ## License
 

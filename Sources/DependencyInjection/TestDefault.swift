@@ -24,7 +24,7 @@ public extension SyncFactory {
     /// Creates a ``FactoryDefault`` that registers the given resolver when applied to a test container.
     ///
     /// The registration is deferred -- it only takes effect when the ``FactoryDefault`` is
-    /// applied inside a ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu`` call.
+    /// applied inside a ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)`` call.
     ///
     /// ```swift
     /// let loggerDefault = Container.logger.testValue { MockLogger() }

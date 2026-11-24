@@ -93,7 +93,7 @@ public final class UniqueScope: Scope, @unchecked Sendable { }
 /// within the same container. The cache is per-container, so test containers
 /// get their own isolated cache entries.
 ///
-/// For async factories, resolution is serialized via ``DIActor`` and concurrent
+/// For async factories, resolution is serialized on an internal global actor and concurrent
 /// callers are deduplicated -- only one task runs the resolver.
 public final class CachedScope: Scope, ScopeWithCache, @unchecked Sendable {
     private let lock = NSRecursiveLock()

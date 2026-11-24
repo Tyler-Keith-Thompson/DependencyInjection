@@ -36,7 +36,7 @@ extension _Factory {
 /// and cannot throw. Use it for dependencies that can be created immediately without
 /// error handling.
 ///
-/// You typically create instances via the ``Factory(scope:resolver:)-6cibz`` function
+/// You typically create instances via the ``Factory(scope:resolver:)->SyncFactory<Dependency>`` function
 /// and store them as static properties on ``Container``:
 ///
 /// ```swift
@@ -108,11 +108,11 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
@@ -123,9 +123,9 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with the registration of the container enclosing the test container
-    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// (for example from a surrounding ``withNestedContainer(operation:)``), otherwise the
     /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
     /// value is cached there rather than shared with the enclosing container, and the resolver's
     /// own dependencies resolve in the test container.
@@ -141,7 +141,7 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
     /// ```
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.
@@ -156,7 +156,7 @@ public final class SyncFactory<Dependency>: _Factory, @unchecked Sendable {
 /// A factory that produces dependencies using a synchronous, throwing resolver.
 ///
 /// `SyncThrowingFactory` works like ``SyncFactory`` but its resolver can throw.
-/// When injected via the ``Injected(_:)-4jgny`` macro, the wrapped value type is
+/// When injected via the ``Injected(_:)-(SyncFactory<T>)`` macro, the wrapped value type is
 /// `Result<Dependency, any Error>`.
 ///
 /// ```swift
@@ -208,11 +208,11 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
@@ -223,9 +223,9 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with the registration of the container enclosing the test container
-    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// (for example from a surrounding ``withNestedContainer(operation:)``), otherwise the
     /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
     /// value is cached there rather than shared with the enclosing container, and the resolver's
     /// own dependencies resolve in the test container.
@@ -241,7 +241,7 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
     /// ```
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.
@@ -256,7 +256,7 @@ public final class SyncThrowingFactory<Dependency>: _Factory, @unchecked Sendabl
 /// A factory that produces dependencies using an asynchronous, non-throwing resolver.
 ///
 /// `AsyncFactory` is used when dependency creation requires `await`. The `Dependency`
-/// type must conform to `Sendable`. When injected via the ``Injected(_:)-4jgny`` macro,
+/// type must conform to `Sendable`. When injected via the ``Injected(_:)-(SyncFactory<T>)`` macro,
 /// the wrapped value type is `Task<Dependency, Never>`.
 ///
 /// ```swift
@@ -309,11 +309,11 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
@@ -324,9 +324,9 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with the registration of the container enclosing the test container
-    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// (for example from a surrounding ``withNestedContainer(operation:)``), otherwise the
     /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
     /// value is cached there rather than shared with the enclosing container, and the resolver's
     /// own dependencies resolve in the test container.
@@ -342,7 +342,7 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
     /// ```
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.
@@ -358,7 +358,7 @@ public final class AsyncFactory<Dependency: Sendable>: _Factory, @unchecked Send
 ///
 /// `AsyncThrowingFactory` is the most flexible factory type -- its resolver can both
 /// `await` and `throw`. The `Dependency` type must conform to `Sendable`. When injected
-/// via the ``Injected(_:)-4jgny`` macro, the wrapped value type is `Task<Dependency, any Error>`.
+/// via the ``Injected(_:)-(SyncFactory<T>)`` macro, the wrapped value type is `Task<Dependency, any Error>`.
 ///
 /// ```swift
 /// extension Container {
@@ -409,11 +409,11 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with its production resolver instead of treating it as unregistered.
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useParentContainer()`` afterwards replaces it.
@@ -424,9 +424,9 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
         return self
     }
 
-    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``,
+    /// Within ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``,
     /// resolves this factory with the registration of the container enclosing the test container
-    /// (for example from a surrounding ``withNestedContainer(operation:)-7glsq``), otherwise the
+    /// (for example from a surrounding ``withNestedContainer(operation:)``), otherwise the
     /// production resolver. The resolver runs in the test container: a `.cached` or `.shared`
     /// value is cached there rather than shared with the enclosing container, and the resolver's
     /// own dependencies resolve in the test container.
@@ -442,7 +442,7 @@ public final class AsyncThrowingFactory<Dependency: Sendable>: _Factory, @unchec
     /// ```
     ///
     /// Applies only to the innermost test container enclosing the call, even when called from a
-    /// ``withNestedContainer(operation:)-7glsq`` inside it. Takes precedence over that test
+    /// ``withNestedContainer(operation:)`` inside it. Takes precedence over that test
     /// container's registrations and respects the factory's scope. With no enclosing test
     /// container it does nothing. Calling
     /// ``useProduction()`` afterwards replaces it.

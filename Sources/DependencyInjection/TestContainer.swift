@@ -258,7 +258,7 @@ public enum LeakedResolutionStrategy<D> {
 
 /// A protocol for defining how leaked dependency resolutions are handled.
 ///
-/// A "leaked resolution" occurs when async work spawned inside ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``
+/// A "leaked resolution" occurs when async work spawned inside ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``
 /// outlives the test container block and attempts to resolve a dependency after the
 /// test container has been torn down.
 ///
@@ -407,7 +407,7 @@ public struct CrashLeakedResolutionBehavior: LeakedResolutionBehavior {
 /// - If `DI_BEST_EFFORT_LEAK_RESOLUTION=true`, uses ``BestEffortLeakedResolutionBehavior``.
 /// - Otherwise, uses ``CrashLeakedResolutionBehavior``.
 ///
-/// This is the default behavior used by ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``.
+/// This is the default behavior used by ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``.
 public struct DefaultLeakedResolutionBehavior: LeakedResolutionBehavior {
     let chosenBehavior: any LeakedResolutionBehavior
     public init() {
@@ -440,7 +440,7 @@ func crash(message: String) -> Never {
 
 /// Controls what happens when a dependency is resolved in a test container but has no registered test double.
 ///
-/// By default, ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``
+/// By default, ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``
 /// uses ``fatalError``, which crashes immediately with a message identifying both the resolution
 /// site and the test container creation site.
 public enum UnregisteredBehavior {
@@ -537,7 +537,7 @@ public func withTestContainer<T>(defaults: TestDefaults? = nil,
 
 /// Executes an asynchronous test operation in an isolated container.
 ///
-/// This is the async counterpart to ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)-1hkwu``.
+/// This is the async counterpart to ``withTestContainer(defaults:unregisteredBehavior:leakedResolutionBehavior:file:line:function:operation:)``.
 ///
 /// ```swift
 /// @Test func asyncFeatureWorks() async {

@@ -115,12 +115,12 @@ public macro ConstructorInjected<T>(_ factory: AsyncThrowingFactory<T>) = #exter
 
 /// Injects a dependency that is resolved on first access and then cached in the instance.
 ///
-/// Unlike ``Injected(_:)-swift.macro``, the resolver is not called until the property is
+/// Unlike ``Injected(_:)-(SyncFactory<T>)``, the resolver is not called until the property is
 /// first read. After that, the cached value is returned on subsequent reads (thread-safe).
 ///
 /// The first read resolves in whatever `Container.current` is at that read, not the container
 /// the object was created in. If the object may be first read outside the context that created
-/// it, use ``ConstructorInjected(_:)-swift.macro`` or do the first read inside
+/// it, use ``ConstructorInjected(_:)-(SyncFactory<T>)`` or do the first read inside
 /// `withContainer(_:operation:)`.
 ///
 /// ```swift
