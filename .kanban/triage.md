@@ -13,7 +13,7 @@ registrations, caches and leftover async work must never leak into another test.
 - Injection macros: `@Injected`, `@LazyInjected`, `@ConstructorInjected` and their `$` projections.
 - Test support: `withTestContainer`, what happens on an unregistered resolve, leak detection and its behaviors, composable test defaults.
 - DispatchInterpose: the C shim that carries test context across GCD calls.
-- Platforms: Apple platforms at the current floor and Linux (CI runs on swift:6.1.2 Ubuntu).
+- Platforms: Apple platforms at the current floor and Linux (CI runs on swift:6.4 Ubuntu).
   Windows and Android support are welcome as backlog features (see D5).
 - Licensing, DocC docs and the README.
 

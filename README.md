@@ -18,7 +18,7 @@ Dependency injection for Swift 6. Factories can be sync or async, throwing or no
 
 ## Requirements
 
-- Swift 6.0+
+- Swift 6.4+
 - iOS 17+ / macOS 13+ / watchOS 10+ / tvOS 17+
 
 ## Installation
